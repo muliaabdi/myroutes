@@ -1,4 +1,4 @@
-# 🏍️ MyRoutes - Route Planning & CCTV Monitoring
+# 🏍️ Route Planning & CCTV Monitoring
 
 Plan your journey with interactive maps featuring real-time CCTV cameras along your route. Search locations, set origin/destination points, and view nearby traffic cameras with live streaming video feeds.
 
