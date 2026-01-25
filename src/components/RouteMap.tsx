@@ -237,6 +237,9 @@ export default function RouteMap() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAbortRef = useRef<AbortController | null>(null);
 
+  // Sidebar visibility state
+  const [showSidebar, setShowSidebar] = useState(true);
+
   // Load origin and destination from localStorage on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -648,13 +651,79 @@ export default function RouteMap() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen relative">
       {/* Map container */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative h-full">
         <div ref={mapContainerRef} className="w-full h-full z-0" data-click-mode={clickMode || ''} />
 
+        {/* Backdrop overlay for mobile when sidebar is open */}
+        {showSidebar && (
+          <div
+            className="absolute inset-0 bg-black/50 z-20 md:hidden"
+            onClick={() => {
+              setShowSidebar(false);
+              setTimeout(() => {
+                if (mapRef.current) {
+                  mapRef.current.invalidateSize();
+                }
+              }, 300);
+            }}
+          />
+        )}
+
         {/* Map controls overlay */}
-        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        {/* Hamburger button - show on mobile only (top right) */}
+        <div className="absolute top-4 right-4 z-20 md:hidden">
+          <button
+            onClick={() => {
+              setShowSidebar(!showSidebar);
+              // Invalidate map size after sidebar transition
+              setTimeout(() => {
+                if (mapRef.current) {
+                  mapRef.current.invalidateSize();
+                }
+              }, 300);
+            }}
+            className="bg-white rounded-lg shadow-lg p-3 hover:bg-gray-50 transition-colors"
+            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+          >
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {showSidebar ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Hamburger button - show on desktop only (top left) */}
+        <div className="absolute top-4 left-4 z-10 hidden md:block">
+          <button
+            onClick={() => {
+              setShowSidebar(!showSidebar);
+              // Invalidate map size after sidebar transition
+              setTimeout(() => {
+                if (mapRef.current) {
+                  mapRef.current.invalidateSize();
+                }
+              }, 300);
+            }}
+            className="bg-white rounded-lg shadow-lg p-3 hover:bg-gray-50 transition-colors"
+            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+          >
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {showSidebar ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Map style, traffic, and legend - hide on mobile when sidebar is visible */}
+        <div className={`absolute top-4 right-4 z-10 flex flex-col gap-2 max-w-[calc(100%-5rem)] md:max-w-[calc(100%-2rem)] transition-all duration-300 ${showSidebar ? 'md:flex hidden' : 'flex'}`}>
           {/* Map style selector */}
           <div className="bg-white rounded-lg shadow-lg p-2">
             <label className="text-xs font-medium text-gray-600 block mb-2">Map Style</label>
@@ -737,13 +806,32 @@ export default function RouteMap() {
       </div>
 
       {/* Sidebar */}
-      <div className="w-96 bg-white shadow-xl overflow-y-auto">
+      {showSidebar && (
+        <div className="absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl overflow-y-auto z-30 transition-transform duration-300">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span>🏍️</span> MyRoutes
-          </h1>
-          <p className="text-blue-100 text-sm mt-1">MyRoutes - Route Planning & CCTV Monitoring</p>
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <span>🏍️</span> MyRoutes
+            </h1>
+            <p className="text-blue-100 text-sm mt-1">Route Planning & CCTV Monitoring</p>
+          </div>
+          <button
+            onClick={() => {
+              setShowSidebar(false);
+              setTimeout(() => {
+                if (mapRef.current) {
+                  mapRef.current.invalidateSize();
+                }
+              }, 300);
+            }}
+            className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors"
+            title="Close sidebar"
+          >
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Plan Your Route - Always visible */}
@@ -767,6 +855,30 @@ export default function RouteMap() {
                   <p className="text-sm text-gray-400 italic">Click &quot;Set Origin&quot; to select starting point</p>
                 )}
               </div>
+            </div>
+
+            {/* Swap Button */}
+            <div className="flex justify-center">
+              <button
+                onClick={() => {
+                  if (origin && destination) {
+                    const temp = origin;
+                    setOrigin(destination);
+                    setDestination(temp);
+                  }
+                }}
+                disabled={!origin || !destination}
+                className={`p-2 rounded-full border-2 transition-all ${
+                  origin && destination
+                    ? 'bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 hover:border-blue-400 cursor-pointer'
+                    : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+                }`}
+                title="Swap origin and destination"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </button>
             </div>
 
             {/* Destination Display or Prompt */}
@@ -966,7 +1078,7 @@ export default function RouteMap() {
                   <span className="text-red-500">📹</span> CCTV Cameras
                   <span className="text-sm font-normal text-gray-500">({nearbyCCTVs.length})</span>
                 </h2>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
                   {nearbyCCTVs.map((cctv) => (
                     <button
                       key={cctv.id}
@@ -1029,6 +1141,7 @@ export default function RouteMap() {
           </>
         ) : null}
       </div>
+      )}
 
       {/* CCTV Modal */}
       <CCTVModal

@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MyRoutes - Route Planning & CCTV Monitoring",
+  title: "Route Planning & CCTV Monitoring",
   description: "Generate and visualize motorcycle routes using Google Maps",
 };
 
