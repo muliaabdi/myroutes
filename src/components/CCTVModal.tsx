@@ -101,17 +101,12 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
       // Pre-check if stream is available (for proxied URLs)
       if (streamUrl.startsWith("http")) {
         try {
-          console.log("Pre-checking stream:", proxiedUrl);
           const checkResponse = await fetch(proxiedUrl);
-          console.log("Pre-check response status:", checkResponse.status);
-          console.log("Pre-check content-type:", checkResponse.headers.get("content-type"));
 
           const contentType = checkResponse.headers.get("content-type") || "";
           if (contentType.includes("application/json")) {
             const data = await checkResponse.json();
-            console.log("Pre-check JSON response:", data);
             if (data.error) {
-              console.log("Stream error detected:", data.error);
               setError("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
               setLoading(false);
               return;
@@ -119,7 +114,6 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
           }
         } catch (e) {
           // Continue to load stream, pre-check failed
-          console.log("Pre-check failed, continuing to load stream:", e);
         }
       }
 

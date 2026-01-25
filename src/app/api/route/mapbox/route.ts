@@ -228,7 +228,6 @@ function mapTrafficToOSRMRoute(
   const congestion: (string | null)[] = [];
 
   if (!mapboxData.routes || !mapboxData.routes[0]) {
-    console.log("No Mapbox routes available");
     return Array(osrmCoords.length).fill(null);
   }
 
@@ -237,16 +236,12 @@ function mapTrafficToOSRMRoute(
   const annotation = mapboxLeg.annotation;
 
   if (!annotation || !annotation.congestion) {
-    console.log("No congestion annotation in Mapbox data");
     return Array(osrmCoords.length).fill(null);
   }
 
   // Decode Mapbox route geometry (polyline6)
   const mapboxCoords = decodePolyline(mapboxRoute.geometry, 6);
   const mapboxCongestion = annotation.congestion;
-
-  console.log(`Mapbox has ${mapboxCoords.length} coords, ${mapboxCongestion.length} congestion values`);
-  console.log(`OSRM has ${osrmCoords.length} coords`);
 
   // Maximum distance to consider traffic data valid (200 meters)
   // If OSRM route is too far from Mapbox route, don't use that traffic data
@@ -280,8 +275,6 @@ function mapTrafficToOSRMRoute(
       tooFarCount++;
     }
   }
-
-  console.log(`Matched ${matchedCount} coords, ${tooFarCount} too far (>${MAX_MATCH_DISTANCE}m)`);
 
   return congestion;
 }
@@ -355,7 +348,6 @@ function buildTrafficSegments(
     }
   }
 
-  console.log(`Built ${segments.length} traffic segments from ${osrmCoords.length} coordinates`);
   return segments;
 }
 

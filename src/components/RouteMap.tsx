@@ -492,9 +492,6 @@ export default function RouteMap() {
         }
 
         const data = await response.json();
-        console.log("API Response:", data);
-        console.log("trafficSegments:", data.trafficSegments);
-        console.log("coordinates:", data.coordinates?.length);
         setRouteData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -509,8 +506,6 @@ export default function RouteMap() {
   useEffect(() => {
     // Draw route on map when data is available
     if (!routeData || !mapRef.current) return;
-
-    console.log("Drawing route, traffic segments:", routeData.trafficSegments?.length);
 
     const map = mapRef.current;
 
@@ -586,11 +581,6 @@ export default function RouteMap() {
     // Calculate and set nearby CCTVs (within 50 meters of the route)
     const nearby = getCCTVsNearRoute(CCTVS, routeData.coordinates, 50);
     setNearbyCCTVs(nearby);
-    console.log(`Total CCTVs: ${CCTVS.length}`);
-    console.log(`Found ${nearby.length} CCTVs near the route (50m radius)`);
-    if (nearby.length > 0 && nearby.length < 20) {
-      console.log("Nearby CCTVs:", nearby.map(c => ({ name: c.name, distance: Math.round(distanceToPolyline({ lat: c.lat, lng: c.lng }, routeData.coordinates)) + "m" })));
-    }
   }, [routeData]);
 
   if (error) {

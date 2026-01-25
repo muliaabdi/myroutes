@@ -9,8 +9,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing stream URL" }, { status: 400 });
     }
 
-    console.log("Proxying stream:", streamUrl);
-
     // Use shorter timeout for cctv.bandungkab.go.id (server often doesn't respond)
     const isProblematicDomain = streamUrl.includes("cctv.bandungkab.go.id");
     const timeoutMs = isProblematicDomain ? 8000 : 30000; // 8 sec for problematic, 30 sec for others
@@ -28,7 +26,6 @@ export async function GET(request: NextRequest) {
         headers = {
           "Accept": "*/*",
         };
-        console.log("Using minimal headers for cctv.bandungkab.go.id");
       } else {
         // Use full headers for other domains
         headers = {
@@ -38,10 +35,7 @@ export async function GET(request: NextRequest) {
           "Accept-Language": "en-US,en;q=0.9",
           "Connection": "keep-alive",
         };
-        console.log("Using full headers for:", streamUrl);
       }
-
-      console.log("Fetching stream:", streamUrl);
 
       const response = await fetch(streamUrl, {
         headers,
@@ -52,10 +46,7 @@ export async function GET(request: NextRequest) {
 
       clearTimeout(timeoutId);
 
-      console.log("Stream response status:", response.status, "contentType:", response.headers.get("content-type"));
-
       if (!response.ok) {
-        console.error("Stream proxy error:", response.status, response.statusText);
 
         // Special handling for 404 - stream not available
         if (response.status === 404) {
