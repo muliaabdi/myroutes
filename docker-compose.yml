@@ -13,7 +13,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       # Add your LocationIQ API key here or use .env file
-      - NEXT_PUBLIC_LOCATIONIQ_API_KEY=${LOCATIONIQ_API_KEY}
+      - LOCATIONIQ_API_KEY=${LOCATIONIQ_API_KEY}
       - NEXT_PUBLIC_MAPBOX_TOKEN=${MAPBOX_TOKEN}
     networks:
       - myroutes-network

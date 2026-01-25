@@ -54,6 +54,8 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
   }, [cctv?.id]);
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const loadStream = async () => {
       if (!isOpen || !cctv || !videoRef.current) {
         return;
@@ -65,6 +67,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
 
       // Clean up previous HLS instance
       if ((video as any).hls) {
+        (video as any).hls.stopLoad();
         (video as any).hls.destroy();
         delete (video as any).hls;
       }
@@ -101,7 +104,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
       // Pre-check if stream is available (for proxied URLs)
       if (streamUrl.startsWith("http")) {
         try {
-          const checkResponse = await fetch(proxiedUrl);
+          const checkResponse = await fetch(proxiedUrl, { signal: abortController.signal });
 
           const contentType = checkResponse.headers.get("content-type") || "";
           if (contentType.includes("application/json")) {
@@ -113,6 +116,9 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
             }
           }
         } catch (e) {
+          if ((e as Error).name === 'AbortError') {
+            return; // Component unmounted or modal closed
+          }
           // Continue to load stream, pre-check failed
         }
       }
@@ -127,9 +133,19 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         // Set the base URL for resolving relative paths in the playlist
         // This ensures segments are loaded from the same origin as the m3u8 file
         xhrSetup: (xhr, url) => {
+          // Check if the component has been unmounted before sending the request
+          if (abortController.signal.aborted) {
+            xhr.abort();
+            return;
+          }
           xhr.timeout = 15000; // 15 second timeout
           // Set withCredentials to false for cross-origin requests
           xhr.withCredentials = false;
+
+          // Listen for abort signal
+          abortController.signal.addEventListener('abort', () => {
+            xhr.abort();
+          });
 
           // Intercept response to check for JSON error from proxy
           const originalOnReadyStateChange = xhr.onreadystatechange;
@@ -221,13 +237,20 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
     loadStream();
 
     return () => {
+      // Abort any ongoing fetch requests
+      abortController.abort();
+
+      // Properly cleanup HLS instance
       if (videoRef.current && (videoRef.current as any).hls) {
-        (videoRef.current as any).hls.destroy();
+        const hls = (videoRef.current as any).hls;
+        hls.stopLoad(); // Stop loading fragments
+        hls.destroy(); // Destroy the instance
         delete (videoRef.current as any).hls;
       }
       if (videoRef.current) {
         videoRef.current.pause();
         videoRef.current.src = "";
+        videoRef.current.load(); // Reset media element
       }
     };
   }, [isOpen, cctv]);
