@@ -237,6 +237,55 @@ export default function RouteMap() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAbortRef = useRef<AbortController | null>(null);
 
+  // Load origin and destination from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const savedOrigin = localStorage.getItem("myroutes-origin");
+      const savedDestination = localStorage.getItem("myroutes-destination");
+
+      if (savedOrigin) {
+        setOrigin(JSON.parse(savedOrigin));
+      }
+      if (savedDestination) {
+        setDestination(JSON.parse(savedDestination));
+      }
+    } catch (e) {
+      console.error("Failed to load route from localStorage:", e);
+    }
+  }, []);
+
+  // Save origin to localStorage when it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      if (origin) {
+        localStorage.setItem("myroutes-origin", JSON.stringify(origin));
+      } else {
+        localStorage.removeItem("myroutes-origin");
+      }
+    } catch (e) {
+      console.error("Failed to save origin to localStorage:", e);
+    }
+  }, [origin]);
+
+  // Save destination to localStorage when it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      if (destination) {
+        localStorage.setItem("myroutes-destination", JSON.stringify(destination));
+      } else {
+        localStorage.removeItem("myroutes-destination");
+      }
+    } catch (e) {
+      console.error("Failed to save destination to localStorage:", e);
+    }
+  }, [destination]);
+
   // Update ref when clickMode changes
   useEffect(() => {
     clickModeRef.current = clickMode;
@@ -602,7 +651,7 @@ export default function RouteMap() {
     <div className="flex h-screen">
       {/* Map container */}
       <div className="flex-1 relative">
-        <div ref={mapContainerRef} className="w-full h-full z-0" />
+        <div ref={mapContainerRef} className={`w-full h-full z-0 ${clickMode ? 'cursor-pointer' : ''}`} />
 
         {/* Map controls overlay */}
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
