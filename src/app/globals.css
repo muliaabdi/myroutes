@@ -23,3 +23,9 @@ body {
     )
     rgb(var(--background-start-rgb));
 }
+
+/* Map cursor pointer when click mode is active */
+[data-click-mode="origin"],
+[data-click-mode="destination"] {
+  cursor: pointer !important;
+}

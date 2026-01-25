@@ -651,7 +651,7 @@ export default function RouteMap() {
     <div className="flex h-screen">
       {/* Map container */}
       <div className="flex-1 relative">
-        <div ref={mapContainerRef} className={`w-full h-full z-0 ${clickMode ? 'cursor-pointer' : ''}`} />
+        <div ref={mapContainerRef} className="w-full h-full z-0" data-click-mode={clickMode || ''} />
 
         {/* Map controls overlay */}
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
