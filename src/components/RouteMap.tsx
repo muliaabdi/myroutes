@@ -697,8 +697,8 @@ export default function RouteMap() {
           </button>
         </div>
 
-        {/* Map style, traffic, and legend - always visible on desktop, hidden when sidebar open on mobile */}
-        <div className={`absolute top-4 right-4 z-10 flex flex-col gap-2 max-w-[calc(100%-5rem)] md:max-w-[calc(100%-2rem)] transition-all duration-300 ${showSidebar ? 'md:flex hidden' : 'flex'}`}>
+        {/* Map style, traffic, and legend - show on desktop only */}
+        <div className="hidden md:flex absolute top-4 right-4 z-10 flex-col gap-2 max-w-[calc(100%-2rem)]">
           {/* Map style selector */}
           <div className="bg-white rounded-lg shadow-lg p-2">
             <label className="text-xs font-medium text-gray-600 block mb-2">Map Style</label>
