@@ -672,7 +672,7 @@ export default function RouteMap() {
         )}
 
         {/* Map controls overlay */}
-        {/* Hamburger button - show on mobile only (top right) */}
+        {/* Hamburger button - show on mobile only */}
         <div className="absolute top-4 right-4 z-20 md:hidden">
           <button
             onClick={() => {
@@ -697,32 +697,7 @@ export default function RouteMap() {
           </button>
         </div>
 
-        {/* Hamburger button - show on desktop only (top left) */}
-        <div className="absolute top-4 left-4 z-10 hidden md:block">
-          <button
-            onClick={() => {
-              setShowSidebar(!showSidebar);
-              // Invalidate map size after sidebar transition
-              setTimeout(() => {
-                if (mapRef.current) {
-                  mapRef.current.invalidateSize();
-                }
-              }, 300);
-            }}
-            className="bg-white rounded-lg shadow-lg p-3 hover:bg-gray-50 transition-colors"
-            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {showSidebar ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
-        </div>
-
-        {/* Map style, traffic, and legend - hide on mobile when sidebar is visible */}
+        {/* Map style, traffic, and legend - always visible on desktop, hidden when sidebar open on mobile */}
         <div className={`absolute top-4 right-4 z-10 flex flex-col gap-2 max-w-[calc(100%-5rem)] md:max-w-[calc(100%-2rem)] transition-all duration-300 ${showSidebar ? 'md:flex hidden' : 'flex'}`}>
           {/* Map style selector */}
           <div className="bg-white rounded-lg shadow-lg p-2">
