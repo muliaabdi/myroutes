@@ -2798,5 +2798,397 @@
         "lat": "-6.898661",
         "lng": "107.607741",
         "streamUrl": "https://pelindung.bandung.go.id:3443/video/DPKP3/tamanfilmdua.m3u8"
+    },
+    {
+        "id": "cctv-11",
+        "name": "Soekarno Hatta - Gedebage",
+        "lat": -6.93703,
+        "lng": 107.692679,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeUt/index.m3u8"
+    },
+    {
+        "id": "cctv-12",
+        "name": "Soekarno Hatta - Gedebage",
+        "lat": -6.93703,
+        "lng": 107.692679,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeBar/index.m3u8"
+    },
+    {
+        "id": "cctv-1",
+        "name": "Soekarno Hatta - Gedebage",
+        "lat": -6.93703,
+        "lng": 107.692679,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeSel/index.m3u8"
+    },
+    {
+        "id": "cctv-1",
+        "name": "Soekarno Hatta - Gedebage",
+        "lat": -6.93703,
+        "lng": 107.692679,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeTim/index.m3u8"
+    },
+    {
+        "id": "cctv-2",
+        "name": "Soekarno Hatta - Ibrahim Adjie",
+        "lat": -6.945427,
+        "lng": 107.641883,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SamsatBar/index.m3u8"
+    },
+    {
+        "id": "cctv-2",
+        "name": "Soekarno Hatta - Ibrahim Adjie",
+        "lat": -6.945427,
+        "lng": 107.641883,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SamsatUt/index.m3u8"
+    },
+    {
+        "id": "cctv-2",
+        "name": "Soekarno Hatta - Ibrahim Adjie",
+        "lat": -6.945427,
+        "lng": 107.641883,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SamsatSel/index.m3u8"
+    },
+    {
+        "id": "cctv-2",
+        "name": "Soekarno Hatta - Ibrahim Adjie",
+        "lat": -6.945427,
+        "lng": 107.641883,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Samsat/index.m3u8"
+    },
+    {
+        "id": "cctv-3",
+        "name": "Soekarno Hatta - Buah Batu",
+        "lat": -6.948012,
+        "lng": 107.633519,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatBar/index.m3u8"
+    },
+    {
+        "id": "cctv-3",
+        "name": "Soekarno Hatta - Buah Batu",
+        "lat": -6.948012,
+        "lng": 107.633519,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Buahbatu/index.m3u8"
+    },
+    {
+        "id": "cctv-3",
+        "name": "Soekarno Hatta - Buah Batu",
+        "lat": -6.948012,
+        "lng": 107.633519,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatUt/index.m3u8"
+    },
+    {
+        "id": "cctv-3",
+        "name": "Soekarno Hatta - Buah Batu",
+        "lat": -6.948012,
+        "lng": 107.633519,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatSel/index.m3u8"
+    },
+    {
+        "id": "cctv-3",
+        "name": "Soekarno Hatta - Buah Batu",
+        "lat": -6.948012,
+        "lng": 107.633519,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatTim/index.m3u8"
+    },
+    {
+        "id": "cctv-4",
+        "name": "Soekarno Hatta - Batununggal",
+        "lat": -6.949489,
+        "lng": 107.626006,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BatuTim/index.m3u8"
+    },
+    {
+        "id": "cctv-4",
+        "name": "Soekarno Hatta - Batununggal",
+        "lat": -6.949489,
+        "lng": 107.626006,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Batununggal/index.m3u8"
+    },
+    {
+        "id": "cctv-4",
+        "name": "Soekarno Hatta - Batununggal",
+        "lat": -6.949489,
+        "lng": 107.626006,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BatuBar/index.m3u8"
+    },
+    {
+        "id": "cctv-5",
+        "name": "Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/MochToha/index.m3u8"
+    },
+    {
+        "id": "cctv-5",
+        "name": "Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaBar/index.m3u8"
+    },
+    {
+        "id": "cctv-5",
+        "name": "Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaSel/index.m3u8"
+    },
+    {
+        "id": "cctv-5",
+        "name": "Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaTim/index.m3u8"
+    },
+    {
+        "id": "cctv-5",
+        "name": "Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaUt/index.m3u8"
+    },
+    {
+        "id": "cctv-7",
+        "name": "Soekarno Hatta - Cibaduyut",
+        "lat": -6.94728,
+        "lng": 107.595227,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Cibaduyut/index.m3u8"
+    },
+    {
+        "id": "cctv-9",
+        "name": "Soekarno Hatta - Caringin",
+        "lat": -6.94311,
+        "lng": 107.584429,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PasarCaringin/index.m3u8"
+    },
+    {
+        "id": "cctv-10",
+        "name": "Soekarno Hatta - Pasir Koja",
+        "lat": -6.930429,
+        "lng": 107.576033,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskojSel/index.m3u8"
+    },
+    {
+        "id": "cctv-10",
+        "name": "Soekarno Hatta - Pasir Koja",
+        "lat": -6.930429,
+        "lng": 107.576033,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskojUt/index.m3u8"
+    },
+    {
+        "id": "cctv-12",
+        "name": "Sudirman - Jamika",
+        "lat": -6.918823,
+        "lng": 107.586506,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Jamika/index.m3u8"
+    },
+    {
+        "id": "cctv-13",
+        "name": "Sudirman - Gardujati",
+        "lat": -6.920126,
+        "lng": 107.598345,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Gardujati/index.m3u8"
+    },
+    {
+        "id": "cctv-16",
+        "name": "Simpang Lima - Asia Afrika",
+        "lat": -6.922399,
+        "lng": 107.617551,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SimpangLima/index.m3u8"
+    },
+    {
+        "id": "cctv-20",
+        "name": "Pasteur - Suryasumantri",
+        "lat": -6.892164,
+        "lng": 107.581369,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PasteurTim/index.m3u8"
+    },
+    {
+        "id": "cctv-20",
+        "name": "Pasteur - Suryasumantri",
+        "lat": -6.892164,
+        "lng": 107.581369,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PasteurBar/index.m3u8"
+    },
+    {
+        "id": "cctv-20",
+        "name": "Pasteur - Suryasumantri",
+        "lat": -6.892164,
+        "lng": 107.581369,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Pasteur/index.m3u8"
+    },
+    {
+        "id": "cctv-21",
+        "name": "Pasteur - HOS Tjokroaminoto",
+        "lat": -6.900317,
+        "lng": 107.597399,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalUt/index.m3u8"
+    },
+    {
+        "id": "cctv-21",
+        "name": "Pasteur - HOS Tjokroaminoto",
+        "lat": -6.900317,
+        "lng": 107.597399,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalTim/index.m3u8"
+    },
+    {
+        "id": "cctv-21",
+        "name": "Pasteur - HOS Tjokroaminoto",
+        "lat": -6.900317,
+        "lng": 107.597399,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalPTZ2/index.m3u8"
+    },
+    {
+        "id": "cctv-21",
+        "name": "Pasteur - HOS Tjokroaminoto",
+        "lat": -6.900317,
+        "lng": 107.597399,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalBar/index.m3u8"
+    },
+    {
+        "id": "cctv-22",
+        "name": "Cipaganti - Pasteur",
+        "lat": -6.900291,
+        "lng": 107.602294,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Cipaganti/index.m3u8"
+    },
+    {
+        "id": "cctv-23",
+        "name": "Cihampelas - Pasteur",
+        "lat": -6.900245,
+        "lng": 107.604242,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/CihampelasPtz/index.m3u8"
+    },
+    {
+        "id": "cctv-24",
+        "name": "Tamansari - Cikapayang",
+        "lat": -6.898188,
+        "lng": 107.609552,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Tamansari/index.m3u8"
+    },
+    {
+        "id": "cctv-25",
+        "name": "Djuanda - Cikapayang",
+        "lat": -6.898954,
+        "lng": 107.61269,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Cikapayang/index.m3u8"
+    },
+    {
+        "id": "cctv-29",
+        "name": "Surapati - Sentot Alibasa",
+        "lat": -6.899315,
+        "lng": 107.619276,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Telkom/index.m3u8"
+    },
+    {
+        "id": "cctv-30",
+        "name": "PHH Mustofa - Pahlawan",
+        "lat": -6.89775,
+        "lng": 107.634197,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Pahlawan/index.m3u8"
+    },
+    {
+        "id": "cctv-37",
+        "name": "PHH Mustofa - Cikutra",
+        "lat": -6.899872,
+        "lng": 107.643426,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Cikutra/index.m3u8"
+    },
+    {
+        "id": "cctv-38",
+        "name": "PHH Mustofa - Cimuncang",
+        "lat": -6.901719,
+        "lng": 107.649846,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Cimuncang/index.m3u8"
+    },
+    {
+        "id": "cctv-39",
+        "name": "PHH Mustofa - Padasuka",
+        "lat": -6.901942,
+        "lng": 107.65357,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Padasuka/index.m3u8"
+    },
+    {
+        "id": "cctv-40",
+        "name": "PHH Mustofa - Ahmad Yani",
+        "lat": -6.902065,
+        "lng": 107.655038,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Cicaheum/index.m3u8"
+    },
+    {
+        "id": "cctv-42",
+        "name": "Pelajar Pejuang - Buah Batu",
+        "lat": -6.937009,
+        "lng": 107.622733,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatLingkar/index.m3u8"
+    },
+    {
+        "id": "cctv-44",
+        "name": "Pelajar Pejuang - Gatot Subroto",
+        "lat": -6.924503,
+        "lng": 107.627702,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GatsuLingkar/index.m3u8"
+    },
+    {
+        "id": "cctv-45",
+        "name": "Pelajar Pejuang - Talaga Bodas",
+        "lat": -6.929495,
+        "lng": 107.626469,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TalagaLingkar/index.m3u8"
+    },
+    {
+        "id": "cctv-46",
+        "name": "BKR - Sriwijaya",
+        "lat": -6.937779,
+        "lng": 107.612736,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SriwijayaLingkar/index.m3u8"
+    },
+    {
+        "id": "cctv-47",
+        "name": "BKR - M Ramdan",
+        "lat": -6.937628,
+        "lng": 107.609095,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/RamdanLingkar/index.m3u8"
+    },
+    {
+        "id": "cctv-48",
+        "name": "BKR - M Toha",
+        "lat": -6.937508,
+        "lng": 107.606209,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaLingkar/index.m3u8"
+    },
+    {
+        "id": "cctv-49",
+        "name": "Pelajar Pejuang - Martanegara",
+        "lat": -6.932549,
+        "lng": 107.62572,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Marling/index.m3u8"
+    },
+    {
+        "id": "cctv-50",
+        "name": "Peta - Otista",
+        "lat": -6.937232,
+        "lng": 107.60301,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Tegalega/index.m3u8"
+    },
+    {
+        "id": "cctv-63",
+        "name": "Sunda - Veteran",
+        "lat": -6.920498,
+        "lng": 107.617839,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SundaVet/index.m3u8"
+    },
+    {
+        "id": "cctv-64",
+        "name": "Jawa - Sunda",
+        "lat": -6.915852,
+        "lng": 107.618407,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SundaJaw/index.m3u8"
+    },
+    {
+        "id": "cctv-66",
+        "name": "Jawa - Sumatera",
+        "lat": -6.9149443,
+        "lng": 107.6139497,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SumJawa/index.m3u8"
     }
 ]
