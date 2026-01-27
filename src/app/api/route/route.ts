@@ -51,14 +51,23 @@ function formatDuration(seconds: number): string {
 
 /**
  * Fetch route from OSRM (Open Source Routing Machine) - Free, no API key needed
+ * Supports waypoints for multi-leg routes
  */
 async function getMotorcycleRoute(
   origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number }
+  destination: { lat: number; lng: number },
+  waypoints?: { lat: number; lng: number }[]
 ) {
+  // Build coordinates array: origin -> waypoints -> destination
+  const coordinates = [
+    `${origin.lng},${origin.lat}`,
+    ...(waypoints?.map(wp => `${wp.lng},${wp.lat}`) || []),
+    `${destination.lng},${destination.lat}`
+  ];
+
   // OSRM public server (free for development/testing)
   const url = new URL(
-    `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}`
+    `https://router.project-osrm.org/route/v1/driving/${coordinates.join(';')}`
   );
 
   url.searchParams.append("overview", "full"); // Get full geometry
@@ -223,9 +232,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const origin = body.origin || ORIGIN;
     const destination = body.destination || DESTINATION;
+    const waypoints = body.waypoints || [];
 
     // Fetch the route from OSRM (free, no API key needed)
-    const routeData = await getMotorcycleRoute(origin, destination);
+    const routeData = await getMotorcycleRoute(origin, destination, waypoints);
 
     // Format the route data
     const formattedRoute = formatRouteData(routeData, origin, destination);

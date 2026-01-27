@@ -102,13 +102,22 @@ function coordDistance(
 
 /**
  * Fetch route from OSRM (motorcycle-friendly routing)
+ * Supports waypoints for multi-leg routes
  */
 async function getOSRMRoute(
   origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number }
+  destination: { lat: number; lng: number },
+  waypoints?: { lat: number; lng: number }[]
 ) {
+  // Build coordinates array: origin -> waypoints -> destination
+  const coordinates = [
+    `${origin.lng},${origin.lat}`,
+    ...(waypoints?.map(wp => `${wp.lng},${wp.lat}`) || []),
+    `${destination.lng},${destination.lat}`
+  ];
+
   const url = new URL(
-    `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}`
+    `https://router.project-osrm.org/route/v1/driving/${coordinates.join(';')}`
   );
 
   url.searchParams.append("overview", "full");
@@ -417,16 +426,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const origin = body.origin || ORIGIN;
     const destination = body.destination || DESTINATION;
+    const waypoints = body.waypoints || [];
 
     // Fetch route from OSRM (motorcycle-friendly)
-    const osrmData = await getOSRMRoute(origin, destination);
+    const osrmData = await getOSRMRoute(origin, destination, waypoints);
 
-    // Fetch traffic data from Mapbox
+    // Fetch traffic data from Mapbox (only if no waypoints, as traffic doesn't work well with multi-leg routes)
     let mapboxData: any = null;
-    try {
-      mapboxData = await getMapboxTrafficData(origin, destination);
-    } catch (mapboxError) {
-      console.warn("Mapbox traffic data unavailable, using unknown congestion:", mapboxError);
+    if (waypoints.length === 0) {
+      try {
+        mapboxData = await getMapboxTrafficData(origin, destination);
+      } catch (mapboxError) {
+        console.warn("Mapbox traffic data unavailable, using unknown congestion:", mapboxError);
+      }
     }
 
     // Format route with traffic overlay

@@ -48,6 +48,12 @@ interface CCTV {
   streamUrl: string;
 }
 
+interface Waypoint {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
 // Map styles configuration
 const MAP_STYLES = {
   voyager: {
@@ -210,6 +216,7 @@ export default function RouteMap() {
   const markersRef = useRef<L.Marker[]>([]);
   const cctvMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const waypointMarkersRef = useRef<L.Marker[]>([]);
 
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -226,9 +233,12 @@ export default function RouteMap() {
   const [origin, setOrigin] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [destination, setDestination] = useState<{ lat: number; lng: number; address: string } | null>(null);
 
-  // Map click mode: 'origin' | 'destination' | null
-  const [clickMode, setClickMode] = useState<'origin' | 'destination' | null>(null);
-  const clickModeRef = useRef<'origin' | 'destination' | null>(null);
+  // Waypoints for route customization
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+
+  // Map click mode: 'origin' | 'destination' | 'waypoint' | null
+  const [clickMode, setClickMode] = useState<'origin' | 'destination' | 'waypoint' | null>(null);
+  const clickModeRef = useRef<'origin' | 'destination' | 'waypoint' | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -422,8 +432,14 @@ export default function RouteMap() {
       }
 
       const clickIcon = L.divIcon({
-        html: `<div class="flex items-center justify-center w-8 h-8 ${currentClickMode === 'origin' ? 'bg-green-500' : 'bg-red-500'} rounded-full border-2 border-white shadow-lg animate-pulse">
-          <span class="text-white text-xs font-bold">${currentClickMode === 'origin' ? 'A' : 'B'}</span>
+        html: `<div class="flex items-center justify-center w-8 h-8 ${currentClickMode === 'origin' ? 'bg-green-500' :
+          currentClickMode === 'destination' ? 'bg-red-500' :
+            'bg-yellow-500'
+          } rounded-full border-2 border-white shadow-lg animate-pulse">
+          <span class="text-white text-xs font-bold">${currentClickMode === 'origin' ? 'A' :
+            currentClickMode === 'destination' ? 'B' :
+              '+'
+          }</span>
         </div>`,
         className: "custom-click-marker",
         iconSize: [32, 32],
@@ -435,8 +451,10 @@ export default function RouteMap() {
       // Update the appropriate state
       if (currentClickMode === 'origin') {
         setOrigin({ ...coords, address: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` });
-      } else {
+      } else if (currentClickMode === 'destination') {
         setDestination({ ...coords, address: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` });
+      } else if (currentClickMode === 'waypoint') {
+        setWaypoints(prev => [...prev, { ...coords, address: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` }]);
       }
 
       // Clear click mode after selection
@@ -540,7 +558,8 @@ export default function RouteMap() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             origin: { lat: origin.lat, lng: origin.lng },
-            destination: { lat: destination.lat, lng: destination.lng }
+            destination: { lat: destination.lat, lng: destination.lng },
+            waypoints: waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng }))
           }),
         });
 
@@ -559,7 +578,7 @@ export default function RouteMap() {
     };
 
     fetchRoute();
-  }, [useMapboxTraffic, origin, destination]);
+  }, [useMapboxTraffic, origin, destination, waypoints]);
 
   useEffect(() => {
     // Draw route on map when data is available
@@ -579,6 +598,8 @@ export default function RouteMap() {
     }
     markersRef.current.forEach((marker) => map.removeLayer(marker));
     markersRef.current = [];
+    waypointMarkersRef.current.forEach((marker) => map.removeLayer(marker));
+    waypointMarkersRef.current = [];
 
     // Clear existing traffic segments
     trafficSegmentsRef.current.forEach((polyline) => map.removeLayer(polyline));
@@ -622,6 +643,21 @@ export default function RouteMap() {
     }).addTo(map);
     originMarker.bindPopup(`<b>Start:</b><br>${routeData.summary.startAddress}`);
     markersRef.current.push(originMarker);
+
+    // Add waypoint markers
+    waypoints.forEach((wp, index) => {
+      const waypointIcon = L.divIcon({
+        html: `<div class="flex items-center justify-center w-8 h-8 bg-yellow-500 rounded-full border-2 border-white shadow-lg"><span class="text-white text-xs font-bold">${index + 1}</span></div>`,
+        className: "custom-marker",
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+      const waypointMarker = L.marker([wp.lat, wp.lng], {
+        icon: waypointIcon,
+      }).addTo(map);
+      waypointMarker.bindPopup(`<b>Waypoint ${index + 1}:</b><br>${wp.address}`);
+      waypointMarkersRef.current.push(waypointMarker);
+    });
 
     // Add destination marker
     const destIcon = L.divIcon({
@@ -909,29 +945,38 @@ export default function RouteMap() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2 mb-2">
+                <div className="grid grid-cols-3 gap-2 mb-2">
                   <button
                     onClick={() => setClickMode('origin')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${clickMode === 'origin'
+                    className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors ${clickMode === 'origin'
                       ? 'bg-green-600 text-white'
                       : 'bg-white border-2 border-green-300 text-green-700 hover:bg-green-50'
                       }`}
                   >
-                    Set Origin (A)
+                    Origin (A)
                   </button>
                   <button
                     onClick={() => setClickMode('destination')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${clickMode === 'destination'
+                    className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors ${clickMode === 'destination'
                       ? 'bg-red-600 text-white'
                       : 'bg-white border-2 border-red-300 text-red-700 hover:bg-red-50'
                       }`}
                   >
-                    Set Destination (B)
+                    Destination (B)
+                  </button>
+                  <button
+                    onClick={() => setClickMode('waypoint')}
+                    className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors ${clickMode === 'waypoint'
+                      ? 'bg-yellow-600 text-white'
+                      : 'bg-white border-2 border-yellow-300 text-yellow-700 hover:bg-yellow-50'
+                      }`}
+                  >
+                    + Waypoint
                   </button>
                 </div>
 
-                {/* Search input - shown when a mode is selected */}
-                {clickMode && (
+                {/* Search input - shown when origin/destination mode is selected (not for waypoints) */}
+                {clickMode && clickMode !== 'waypoint' && (
                   <div className="relative mt-2">
                     <div className="relative">
                       <input
@@ -979,9 +1024,9 @@ export default function RouteMap() {
                   </div>
                 )}
 
-                {clickMode && !searchQuery && (
+                {(clickMode && clickMode !== 'waypoint') && !searchQuery && (
                   <p className="text-xs text-blue-600 mt-2 text-center">
-                    Search above or click on the map to set {clickMode === 'origin' ? 'origin' : 'destination'}...
+                    Search above or click on the map to set {clickMode === 'origin' ? 'origin' : clickMode === 'destination' ? 'destination' : 'waypoint'}...
                   </p>
                 )}
               </div>
@@ -997,6 +1042,62 @@ export default function RouteMap() {
                 >
                   Calculate Route
                 </button>
+              )}
+
+              {/* Waypoint Management - Only show when route exists */}
+              {origin && destination && (
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-gray-700">📍 Waypoints</h3>
+                    {/* <button
+                      onClick={() => {
+                        setClickMode('waypoint');
+                        setSearchQuery("");
+                        setSearchResults([]);
+                        setShowSearchResults(false);
+                      }}
+                      className={`text-xs px-3 py-1 rounded-full transition-colors ${clickMode === 'waypoint'
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                        }`}
+                    >
+                      {clickMode === 'waypoint' ? 'Click map to add...' : '+ Add Waypoint'}
+                    </button> */}
+                  </div>
+
+                  {waypoints.length > 0 ? (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {waypoints.map((wp, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200"
+                        >
+                          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center shrink-0">
+                            <span className="text-white text-xs font-bold">{index + 1}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-gray-600 truncate">{wp.address}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setWaypoints(prev => prev.filter((_, i) => i !== index));
+                              setRouteData(null);
+                              setLoading(true);
+                            }}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                            title="Remove waypoint"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No waypoints. Click "+ Add Waypoint" to add intermediate stops.</p>
+                  )}
+                </div>
               )}
             </div>
           </div>
