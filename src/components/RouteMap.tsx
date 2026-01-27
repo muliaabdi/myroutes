@@ -697,8 +697,8 @@ export default function RouteMap() {
           </button>
         </div>
 
-        {/* Map style, traffic, and legend - show on desktop only */}
-        <div className="hidden md:flex absolute top-4 right-4 z-10 flex-col gap-2 max-w-[calc(100%-2rem)]">
+        {/* Map style, traffic, and legend - show on desktop, hide on mobile */}
+        <div className="hidden md:flex absolute bottom-4 left-4 z-30 flex-col gap-2">
           {/* Map style selector */}
           <div className="bg-white rounded-lg shadow-lg p-2">
             <label className="text-xs font-medium text-gray-600 block mb-2">Map Style</label>

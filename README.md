@@ -103,6 +103,71 @@ NEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_token_here
 - `/api/geocode` - Search locations using LocationIQ
 - `/api/proxy-stream` - Proxy CCTV streams to bypass CORS
 
+## 🤖 CCTV Data Scraper
+
+This project includes a Python scraper to collect CCTV data from multiple sources in the Bandung & Cimahi region.
+
+### Running the Scraper
+
+The scraper can be run using Docker (recommended):
+
+```bash
+docker run --rm -v "$(pwd):/app" -w /app python:3-alpine sh -c "pip install requests beautifulsoup4 && python scraper.py"
+```
+
+This will:
+1. Scrape CCTV data from all sources
+2. Geocode locations for Cimahi CCTVs
+3. Save to `src/data/cctvs.json`
+
+### Scraper Details
+
+The [`scraper.py`](scraper.py) script collects CCTV data from:
+
+| Source | Region | Cameras | Data Type |
+|--------|--------|---------|-----------|
+| ATCS Kota Bandung | Kota Bandung | 34 | AJAX API |
+| Pelindung | Kota Bandung | 395 | REST API |
+| Dishub Kab. Bandung | Kab. Bandung | 8 | JavaScript array |
+| Dishub KBB | Bandung Barat | 58 | JSON API |
+| SmartCity Cimahi | Kota Cimahi | 11 | HTML scraping |
+
+### Updating CCTV Data
+
+To update the CCTV data:
+
+```bash
+# Run the scraper
+docker run --rm -v "$(pwd):/app" -w /app python:3-alpine sh -c "pip install requests beautifulsoup4 && python scraper.py"
+
+# Or with Python locally (requires Python 3, requests, beautifulsoup4)
+pip install requests beautifulsoup4
+python scraper.py
+```
+
+The scraper will output progress for each source and save the combined data to `src/data/cctvs.json`.
+
+### Adding New CCTV Sources
+
+To add a new CCTV source, edit [`scraper.py`](scraper.py) and:
+
+1. Add a new method `scrape_your_source(self)`
+2. Implement scraping logic for that source
+3. Add `self.scrape_your_source()` to the `__main__` section
+
+Example structure:
+```python
+def scrape_your_source(self):
+    """Scraping Your Source"""
+    self.log("SOURCE", "Memulai scraping...")
+    url = "https://example.com/api/cctv"
+    try:
+        # Scraping logic here
+        pass
+    except Exception as e:
+        self.log("SOURCE", f"Gagal: {e}")
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -122,7 +187,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [OSRM](http://project-osrm.org/) - Open Source Routing Machine
 - [LocationIQ](https://locationiq.com/) - Geocoding API
 - [Leaflet](https://leafletjs.com/) - Open-source JavaScript library for mobile-friendly interactive maps
-- [Bandung CCTV](https://pelindung.bandung.go.id/) - Traffic camera feeds
+- [Mapbox](https://www.mapbox.com/) - Map tiles and traffic overlay
+
+### CCTV Data Sources
+
+Traffic camera data sourced from:
+
+- **Kota Bandung** - [Dishub Kota Bandung](https://atcs-dishub.bandung.go.id/) (ATCS) & [Pelindung](https://pelindung.bandung.go.id:8443/)
+- **Kabupaten Bandung** - [Dishub Kabupaten Bandung](https://dishub.bandungkab.go.id/cctv/)
+- **Bandung Barat** - [Dishub KBB](https://atcs.bandungbaratkab.go.id/)
+- **Kota Cimahi** - [SmartCity Cimahi](https://smartcity.cimahikota.go.id/cctv) (approximate coordinates)
+
+**Total: 528+ CCTV cameras** across the Bandung & Cimahi region
 
 ---
 

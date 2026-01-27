@@ -261,7 +261,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white">
+        <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
             <div>
@@ -271,7 +271,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pointer-events-auto">
             {/* Previous/Next Navigation */}
             {allCCTVs.length > 1 && (
               <>
@@ -316,7 +316,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         </div>
 
         {/* Video Container */}
-        <div className="relative bg-black aspect-video">
+        <div className="relative z-0 bg-black aspect-video">
           {error ? (
             // Stream Not Available Jumbotron
             <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
@@ -371,8 +371,8 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t">
-          <div className="flex items-center justify-between">
+        <div className="relative z-10 px-6 py-4 bg-gray-50 border-t">
+          <div className="flex items-center justify-between pointer-events-auto">
             <div className="text-sm text-gray-600">
               <span className="font-medium">Location:</span>{" "}
               <a
