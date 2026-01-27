@@ -53,22 +53,22 @@ const MAP_STYLES = {
   voyager: {
     name: "Voyager (Google-like)",
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
   },
   dark: {
     name: "Dark Matter",
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
   },
   satellite: {
     name: "Satellite",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: 'Tiles &copy; Esri',
+    attribution: 'Tiles &copy; Esri | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
   },
   osm: {
     name: "OpenStreetMap",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
   },
 };
 
@@ -402,6 +402,12 @@ export default function RouteMap() {
     tileLayerRef.current = tileLayer;
     mapRef.current = map;
 
+    // Hide the default attribution control (we'll render our own)
+    const attributionControl = map.getContainer().querySelector('.leaflet-control-attribution') as HTMLElement;
+    if (attributionControl) {
+      attributionControl.style.display = 'none';
+    }
+
     // Add map click handler
     map.on('click', (e) => {
       const currentClickMode = clickModeRef.current;
@@ -654,7 +660,7 @@ export default function RouteMap() {
     <div className="flex h-screen relative">
       {/* Map container */}
       <div className="flex-1 relative h-full">
-        <div ref={mapContainerRef} className="w-full h-full z-0" data-click-mode={clickMode || ''} />
+        <div ref={mapContainerRef} className="w-full h-full relative z-0" data-click-mode={clickMode || ''} />
 
         {/* Backdrop overlay for mobile when sidebar is open */}
         {showSidebar && (
@@ -778,344 +784,350 @@ export default function RouteMap() {
             </div>
           </div>
         </div>
+
+        {/* Map Attribution - custom rendered outside map container */}
+        <div className="hidden md:block absolute bottom-4 left-[220px] z-30">
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow px-2 py-1 text-[10px] text-gray-600">
+            <span dangerouslySetInnerHTML={{ __html: MAP_STYLES[mapStyle].attribution }} />
+          </div>
+        </div>
       </div>
 
       {/* Sidebar */}
       {showSidebar && (
         <div className="absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl overflow-y-auto z-30 transition-transform duration-300">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <span>🏍️</span> MyRoutes
-            </h1>
-            <p className="text-blue-100 text-sm mt-1">Route Planning & CCTV Monitoring</p>
-          </div>
-          <button
-            onClick={() => {
-              setShowSidebar(false);
-              setTimeout(() => {
-                if (mapRef.current) {
-                  mapRef.current.invalidateSize();
-                }
-              }, 300);
-            }}
-            className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors"
-            title="Close sidebar"
-          >
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Plan Your Route - Always visible */}
-        <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Plan Your Route</h2>
-
-          <div className="space-y-4">
-            {/* Origin Display or Prompt */}
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${origin ? 'bg-green-100' : 'bg-gray-100'}`}>
-                <span className={`font-bold ${origin ? 'text-green-600' : 'text-gray-400'}`}>A</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-500">From</p>
-                {origin ? (
-                  <>
-                    <p className="text-sm font-medium text-gray-800 truncate">{origin.address}</p>
-                    <p className="text-xs text-gray-400">{origin.lat.toFixed(6)}, {origin.lng.toFixed(6)}</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">Click &quot;Set Origin&quot; to select starting point</p>
-                )}
-              </div>
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <span>🏍️</span> MyRoutes
+              </h1>
+              <p className="text-blue-100 text-sm mt-1">Route Planning & CCTV Monitoring</p>
             </div>
-
-            {/* Swap Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={() => {
-                  if (origin && destination) {
-                    const temp = origin;
-                    setOrigin(destination);
-                    setDestination(temp);
+            <button
+              onClick={() => {
+                setShowSidebar(false);
+                setTimeout(() => {
+                  if (mapRef.current) {
+                    mapRef.current.invalidateSize();
                   }
-                }}
-                disabled={!origin || !destination}
-                className={`p-2 rounded-full border-2 transition-all ${
-                  origin && destination
+                }, 300);
+              }}
+              className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors"
+              title="Close sidebar"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Plan Your Route - Always visible */}
+          <div className="p-6 border-b">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Plan Your Route</h2>
+
+            <div className="space-y-4">
+              {/* Origin Display or Prompt */}
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${origin ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  <span className={`font-bold ${origin ? 'text-green-600' : 'text-gray-400'}`}>A</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500">From</p>
+                  {origin ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-800 truncate">{origin.address}</p>
+                      <p className="text-xs text-gray-400">{origin.lat.toFixed(6)}, {origin.lng.toFixed(6)}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Click &quot;Set Origin&quot; to select starting point</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Swap Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    if (origin && destination) {
+                      const temp = origin;
+                      setOrigin(destination);
+                      setDestination(temp);
+                    }
+                  }}
+                  disabled={!origin || !destination}
+                  className={`p-2 rounded-full border-2 transition-all ${origin && destination
                     ? 'bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 hover:border-blue-400 cursor-pointer'
                     : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                }`}
-                title="Swap origin and destination"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Destination Display or Prompt */}
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${destination ? 'bg-red-100' : 'bg-gray-100'}`}>
-                <span className={`font-bold ${destination ? 'text-red-600' : 'text-gray-400'}`}>B</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-500">To</p>
-                {destination ? (
-                  <>
-                    <p className="text-sm font-medium text-gray-800 truncate">{destination.address}</p>
-                    <p className="text-xs text-gray-400">{destination.lat.toFixed(6)}, {destination.lng.toFixed(6)}</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">Click &quot;Set Destination&quot; to select ending point</p>
-                )}
-              </div>
-            </div>
-
-            {/* Click on Map / Search Section */}
-            <div className={`rounded-lg p-3 transition-colors ${clickMode ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-gray-600">📍 Set location:</p>
-                {clickMode && (
-                  <button
-                    onClick={() => {
-                      setClickMode(null);
-                      clickModeRef.current = null;
-                      setSearchQuery("");
-                      setSearchResults([]);
-                      setShowSearchResults(false);
-                      if (clickMarkerRef.current && mapRef.current) {
-                        mapRef.current.removeLayer(clickMarkerRef.current);
-                        clickMarkerRef.current = null;
-                      }
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <button
-                  onClick={() => setClickMode('origin')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${clickMode === 'origin'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white border-2 border-green-300 text-green-700 hover:bg-green-50'
                     }`}
+                  title="Swap origin and destination"
                 >
-                  Set Origin (A)
-                </button>
-                <button
-                  onClick={() => setClickMode('destination')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${clickMode === 'destination'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-white border-2 border-red-300 text-red-700 hover:bg-red-50'
-                    }`}
-                >
-                  Set Destination (B)
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
                 </button>
               </div>
 
-              {/* Search input - shown when a mode is selected */}
-              {clickMode && (
-                <div className="relative mt-2">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        searchLocations(e.target.value);
+              {/* Destination Display or Prompt */}
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${destination ? 'bg-red-100' : 'bg-gray-100'}`}>
+                  <span className={`font-bold ${destination ? 'text-red-600' : 'text-gray-400'}`}>B</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500">To</p>
+                  {destination ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-800 truncate">{destination.address}</p>
+                      <p className="text-xs text-gray-400">{destination.lat.toFixed(6)}, {destination.lng.toFixed(6)}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Click &quot;Set Destination&quot; to select ending point</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Click on Map / Search Section */}
+              <div className={`rounded-lg p-3 transition-colors ${clickMode ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-gray-600">📍 Set location:</p>
+                  {clickMode && (
+                    <button
+                      onClick={() => {
+                        setClickMode(null);
+                        clickModeRef.current = null;
+                        setSearchQuery("");
+                        setSearchResults([]);
+                        setShowSearchResults(false);
+                        if (clickMarkerRef.current && mapRef.current) {
+                          mapRef.current.removeLayer(clickMarkerRef.current);
+                          clickMarkerRef.current = null;
+                        }
                       }}
-                      placeholder="Search location..."
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      autoFocus
-                    />
-                    {searchLoading && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <button
+                    onClick={() => setClickMode('origin')}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${clickMode === 'origin'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white border-2 border-green-300 text-green-700 hover:bg-green-50'
+                      }`}
+                  >
+                    Set Origin (A)
+                  </button>
+                  <button
+                    onClick={() => setClickMode('destination')}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${clickMode === 'destination'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white border-2 border-red-300 text-red-700 hover:bg-red-50'
+                      }`}
+                  >
+                    Set Destination (B)
+                  </button>
+                </div>
+
+                {/* Search input - shown when a mode is selected */}
+                {clickMode && (
+                  <div className="relative mt-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          searchLocations(e.target.value);
+                        }}
+                        placeholder="Search location..."
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        autoFocus
+                      />
+                      {searchLoading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Search results dropdown */}
+                    {showSearchResults && searchResults.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {searchResults.map((result, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSelectLocation(result)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-800 truncate">{result.name}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* No results message */}
+                    {showSearchResults && searchQuery && searchResults.length === 0 && !searchLoading && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500">
+                        No results found. Try clicking on the map instead.
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Search results dropdown */}
-                  {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {searchResults.map((result, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleSelectLocation(result)}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="font-medium text-gray-800 truncate">{result.name}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                {clickMode && !searchQuery && (
+                  <p className="text-xs text-blue-600 mt-2 text-center">
+                    Search above or click on the map to set {clickMode === 'origin' ? 'origin' : 'destination'}...
+                  </p>
+                )}
+              </div>
 
-                  {/* No results message */}
-                  {showSearchResults && searchQuery && searchResults.length === 0 && !searchLoading && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500">
-                      No results found. Try clicking on the map instead.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {clickMode && !searchQuery && (
-                <p className="text-xs text-blue-600 mt-2 text-center">
-                  Search above or click on the map to set {clickMode === 'origin' ? 'origin' : 'destination'}...
-                </p>
+              {/* Calculate Route Button - Only show when both set */}
+              {origin && destination && (
+                <button
+                  onClick={() => {
+                    setRouteData(null);
+                    setLoading(true);
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Calculate Route
+                </button>
               )}
             </div>
-
-            {/* Calculate Route Button - Only show when both set */}
-            {origin && destination && (
-              <button
-                onClick={() => {
-                  setRouteData(null);
-                  setLoading(true);
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                Calculate Route
-              </button>
-            )}
           </div>
-        </div>
 
-        {loading ? (
-          <div className="p-6">
-            <div className="animate-pulse space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+          {loading ? (
+            <div className="p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+              </div>
+              <p className="text-gray-500 text-sm mt-4">Fetching route data...</p>
             </div>
-            <p className="text-gray-500 text-sm mt-4">Fetching route data...</p>
-          </div>
-        ) : routeData ? (
-          <>
-            {/* Route Summary */}
-            <div className="p-6 border-b">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 font-bold">A</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-500 truncate">From</p>
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {routeData.summary.startAddress}
-                  </p>
-                </div>
-              </div>
-
-              <div className="ml-5 border-l-2 border-dashed border-gray-300 h-6"></div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <span className="text-red-600 font-bold">B</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-500 truncate">To</p>
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {routeData.summary.endAddress}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-2xl mb-1">📏</div>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {routeData.summary.distance.text}
-                  </p>
-                  <p className="text-sm text-gray-500">Distance</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="text-2xl mb-1">⏱️</div>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {routeData.summary.duration.text}
-                  </p>
-                  <p className="text-sm text-gray-500">Duration</p>
-                </div>
-              </div>
-            </div>
-
-            {/* CCTV Section */}
-            {nearbyCCTVs.length > 0 && (
+          ) : routeData ? (
+            <>
+              {/* Route Summary */}
               <div className="p-6 border-b">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-red-500">📹</span> CCTV Cameras
-                  <span className="text-sm font-normal text-gray-500">({nearbyCCTVs.length})</span>
-                </h2>
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
-                  {nearbyCCTVs.map((cctv) => (
-                    <button
-                      key={cctv.id}
-                      onClick={() => {
-                        setSelectedCCTV(cctv);
-                        setShowCCTV(true);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors text-left"
-                    >
-                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 font-bold">A</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-500 truncate">From</p>
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {routeData.summary.startAddress}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="ml-5 border-l-2 border-dashed border-gray-300 h-6"></div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="text-red-600 font-bold">B</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-500 truncate">To</p>
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {routeData.summary.endAddress}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="text-2xl mb-1">📏</div>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {routeData.summary.distance.text}
+                    </p>
+                    <p className="text-sm text-gray-500">Distance</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <div className="text-2xl mb-1">⏱️</div>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {routeData.summary.duration.text}
+                    </p>
+                    <p className="text-sm text-gray-500">Duration</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CCTV Section */}
+              {nearbyCCTVs.length > 0 && (
+                <div className="p-6 border-b">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <span className="text-red-500">📹</span> CCTV Cameras
+                    <span className="text-sm font-normal text-gray-500">({nearbyCCTVs.length})</span>
+                  </h2>
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+                    {nearbyCCTVs.map((cctv) => (
+                      <button
+                        key={cctv.id}
+                        onClick={() => {
+                          setSelectedCCTV(cctv);
+                          setShowCCTV(true);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors text-left"
+                      >
+                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{cctv.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
+                          </p>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{cctv.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
-                        </p>
-                      </div>
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* No CCTVs nearby message */}
-            {nearbyCCTVs.length === 0 && (
-              <div className="p-6 border-b">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-red-500">📹</span> CCTV Cameras
-                </h2>
-                <div className="text-center text-gray-500 py-4">
-                  <p>No CCTV cameras found near this route.</p>
-                  <p className="text-xs mt-1">CCTVs within 100m of the route will be shown here.</p>
+              {/* No CCTVs nearby message */}
+              {nearbyCCTVs.length === 0 && (
+                <div className="p-6 border-b">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <span className="text-red-500">📹</span> CCTV Cameras
+                  </h2>
+                  <div className="text-center text-gray-500 py-4">
+                    <p>No CCTV cameras found near this route.</p>
+                    <p className="text-xs mt-1">CCTVs within 100m of the route will be shown here.</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Actions */}
-            <div className="p-6 border-t bg-gray-50 space-y-2">
-              <button
-                onClick={() => {
-                  const bounds = L.latLngBounds(
-                    routeData.coordinates.map(({ lat, lng }) => [lat, lng] as [number, number])
-                  );
-                  if (mapRef.current) {
-                    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-                  }
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                Fit Route to View
-              </button>
-            </div>
-          </>
-        ) : null}
-      </div>
+              {/* Actions */}
+              <div className="p-6 border-t bg-gray-50 space-y-2">
+                <button
+                  onClick={() => {
+                    const bounds = L.latLngBounds(
+                      routeData.coordinates.map(({ lat, lng }) => [lat, lng] as [number, number])
+                    );
+                    if (mapRef.current) {
+                      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Fit Route to View
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
       )}
 
       {/* CCTV Modal */}
