@@ -1095,7 +1095,7 @@ export default function RouteMap() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400 italic">No waypoints. Click "+ Add Waypoint" to add intermediate stops.</p>
+                    <p className="text-xs text-gray-400 italic">No waypoints. Click + Add Waypoint to add intermediate stops.</p>
                   )}
                 </div>
               )}
