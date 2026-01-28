@@ -1,10 +1,10 @@
 [
     {
-        "id": "city-1-76",
+        "id": "city-1-77",
         "name": "KOTA - Soekarno Hatta - Gedebage",
         "lat": -6.93703,
         "lng": 107.692679,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeBar/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeSel/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -24,11 +24,19 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-1-77",
+        "id": "city-1-76",
         "name": "KOTA - Soekarno Hatta - Gedebage",
         "lat": -6.93703,
         "lng": 107.692679,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeSel/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/GedeBar/index.m3u8",
+        "region": "Kota Bandung"
+    },
+    {
+        "id": "city-2-80",
+        "name": "KOTA - Soekarno Hatta - Ibrahim Adjie",
+        "lat": -6.945427,
+        "lng": 107.641883,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SamsatBar/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -48,14 +56,6 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-2-80",
-        "name": "KOTA - Soekarno Hatta - Ibrahim Adjie",
-        "lat": -6.945427,
-        "lng": 107.641883,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/SamsatBar/index.m3u8",
-        "region": "Kota Bandung"
-    },
-    {
         "id": "city-2-82",
         "name": "KOTA - Soekarno Hatta - Ibrahim Adjie",
         "lat": -6.945427,
@@ -64,11 +64,11 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-3-3",
+        "id": "city-3-85",
         "name": "KOTA - Soekarno Hatta - Buah Batu",
         "lat": -6.948012,
         "lng": 107.633519,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Buahbatu/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatBar/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -80,11 +80,11 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-3-83",
+        "id": "city-3-3",
         "name": "KOTA - Soekarno Hatta - Buah Batu",
         "lat": -6.948012,
         "lng": 107.633519,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatTim/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Buahbatu/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -96,11 +96,11 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-3-85",
+        "id": "city-3-83",
         "name": "KOTA - Soekarno Hatta - Buah Batu",
         "lat": -6.948012,
         "lng": 107.633519,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatBar/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/BubatTim/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -128,11 +128,11 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-5-90",
+        "id": "city-5-5",
         "name": "KOTA - Soekarno Hatta - M Toha",
         "lat": -6.948338,
         "lng": 107.609389,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaSel/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/MochToha/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -144,27 +144,27 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-5-91",
-        "name": "KOTA - Soekarno Hatta - M Toha",
-        "lat": -6.948338,
-        "lng": 107.609389,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaUt/index.m3u8",
-        "region": "Kota Bandung"
-    },
-    {
-        "id": "city-5-5",
-        "name": "KOTA - Soekarno Hatta - M Toha",
-        "lat": -6.948338,
-        "lng": 107.609389,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/MochToha/index.m3u8",
-        "region": "Kota Bandung"
-    },
-    {
         "id": "city-5-89",
         "name": "KOTA - Soekarno Hatta - M Toha",
         "lat": -6.948338,
         "lng": 107.609389,
         "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaBar/index.m3u8",
+        "region": "Kota Bandung"
+    },
+    {
+        "id": "city-5-90",
+        "name": "KOTA - Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaSel/index.m3u8",
+        "region": "Kota Bandung"
+    },
+    {
+        "id": "city-5-91",
+        "name": "KOTA - Soekarno Hatta - M Toha",
+        "lat": -6.948338,
+        "lng": 107.609389,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/TohaUt/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -184,19 +184,19 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-10-94",
-        "name": "KOTA - Soekarno Hatta - Pasir Koja",
-        "lat": -6.930429,
-        "lng": 107.576033,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskojSel/index.m3u8",
-        "region": "Kota Bandung"
-    },
-    {
         "id": "city-10-96",
         "name": "KOTA - Soekarno Hatta - Pasir Koja",
         "lat": -6.930429,
         "lng": 107.576033,
         "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskojUt/index.m3u8",
+        "region": "Kota Bandung"
+    },
+    {
+        "id": "city-10-94",
+        "name": "KOTA - Soekarno Hatta - Pasir Koja",
+        "lat": -6.930429,
+        "lng": 107.576033,
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskojSel/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -224,11 +224,11 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-20-20",
+        "id": "city-20-100",
         "name": "KOTA - Pasteur - Suryasumantri",
         "lat": -6.892164,
         "lng": 107.581369,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Pasteur/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PasteurTim/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -240,19 +240,19 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-20-100",
+        "id": "city-20-20",
         "name": "KOTA - Pasteur - Suryasumantri",
         "lat": -6.892164,
         "lng": 107.581369,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PasteurTim/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/Pasteur/index.m3u8",
         "region": "Kota Bandung"
     },
     {
-        "id": "city-21-22",
+        "id": "city-21-108",
         "name": "KOTA - Pasteur - HOS Tjokroaminoto",
         "lat": -6.900317,
         "lng": 107.597399,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalPTZ2/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalUt/index.m3u8",
         "region": "Kota Bandung"
     },
     {
@@ -272,11 +272,11 @@
         "region": "Kota Bandung"
     },
     {
-        "id": "city-21-108",
+        "id": "city-21-22",
         "name": "KOTA - Pasteur - HOS Tjokroaminoto",
         "lat": -6.900317,
         "lng": 107.597399,
-        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalUt/index.m3u8",
+        "streamUrl": "https://atcs-dishub.bandung.go.id:1990/PaskalPTZ2/index.m3u8",
         "region": "Kota Bandung"
     },
     {
