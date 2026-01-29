@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CCTVModal from "./CCTVModal";
-import cctvData from "../data/cctvs.json";
 
 // Fix for default marker icons in Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -77,17 +76,6 @@ const MAP_STYLES = {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
   },
 };
-
-// CCTV data imported from JSON
-const CCTVS: CCTV[] = cctvData
-  // .filter((c: any) => c.stream_cctv && typeof c.stream_cctv === "string" && c.stream_cctv.startsWith("http"))
-  .map((c: any) => ({
-    id: c.id,
-    name: c.name,
-    lat: parseFloat(c.lat),
-    lng: parseFloat(c.lng),
-    streamUrl: c.streamUrl,
-  }));
 
 // Helper function to calculate distance between two coordinates in meters using Haversine formula
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -226,6 +214,7 @@ export default function RouteMap() {
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>("voyager");
   const [useMapboxTraffic, setUseMapboxTraffic] = useState(false);
   const [nearbyCCTVs, setNearbyCCTVs] = useState<CCTV[]>([]);
+  const [CCTVS, setCCTVS] = useState<CCTV[]>([]);
   const trafficSegmentsRef = useRef<L.Polyline[]>([]);
   const clickMarkerRef = useRef<L.Marker | null>(null);
 
@@ -298,6 +287,29 @@ export default function RouteMap() {
       console.error("Failed to save destination to localStorage:", e);
     }
   }, [destination]);
+
+  // Load CCTV data dynamically
+  useEffect(() => {
+    const loadCCTVData = async () => {
+      try {
+        const response = await fetch("/cctvs.json");
+        if (!response.ok) throw new Error("Failed to load CCTV data");
+        const data = await response.json();
+        const cctvs = data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          lat: parseFloat(c.lat),
+          lng: parseFloat(c.lng),
+          streamUrl: c.streamUrl,
+        }));
+        setCCTVS(cctvs);
+      } catch (err) {
+        console.error("Failed to load CCTV data:", err);
+        setCCTVS([]);
+      }
+    };
+    loadCCTVData();
+  }, []);
 
   // Update ref when clickMode changes
   useEffect(() => {
