@@ -13,6 +13,8 @@ services:
       - 8.8.8.8
       - 8.8.4.4
       - 1.1.1.1
+    volumes:
+      - ./public/cctvs.json:/app/public/cctvs.json:ro
     environment:
       - NODE_ENV=production
       - PORT=3000
