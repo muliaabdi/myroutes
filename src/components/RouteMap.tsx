@@ -45,6 +45,7 @@ interface CCTV {
   lat: number;
   lng: number;
   streamUrl: string;
+  online?: boolean;
 }
 
 interface Waypoint {
@@ -215,6 +216,7 @@ export default function RouteMap() {
   const [useMapboxTraffic, setUseMapboxTraffic] = useState(false);
   const [nearbyCCTVs, setNearbyCCTVs] = useState<CCTV[]>([]);
   const [CCTVS, setCCTVS] = useState<CCTV[]>([]);
+  const [cctvStatus, setCctvStatus] = useState<Map<string, boolean>>(new Map());
   const trafficSegmentsRef = useRef<L.Polyline[]>([]);
   const clickMarkerRef = useRef<L.Marker | null>(null);
 
@@ -310,6 +312,18 @@ export default function RouteMap() {
     };
     loadCCTVData();
   }, []);
+
+  // Handle opening CCTV modal
+  const handleOpenCCTVModal = (cctv: CCTV) => {
+    setSelectedCCTV(cctv);
+    setShowCCTV(true);
+  };
+
+  // Handle CCTV error from modal
+  const handleCCTVError = (cctvId: string, hasError: boolean) => {
+    // Update status based on error state from modal
+    setCctvStatus(prev => new Map(prev).set(cctvId, !hasError));
+  };
 
   // Update ref when clickMode changes
   useEffect(() => {
@@ -499,21 +513,29 @@ export default function RouteMap() {
     cctvMarkersRef.current.forEach((marker) => map.removeLayer(marker));
     cctvMarkersRef.current = [];
 
-    // Create custom CCTV icon
-    const cctvIcon = L.divIcon({
-      html: `<div class="flex items-center justify-center w-10 h-10 bg-red-500 rounded-full border-3 border-white shadow-lg cursor-pointer hover:bg-red-600 transition-colors">
-        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-        </svg>
-      </div>`,
-      className: "custom-cctv-marker",
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-    });
+    // Helper function to create CCTV icon with dynamic color
+    const createCCTVIcon = (isOnline: boolean) => {
+      const bgColor = isOnline ? 'bg-blue-500' : 'bg-red-500';
+      const hoverColor = isOnline ? 'hover:bg-blue-600' : 'hover:bg-red-600';
+
+      return L.divIcon({
+        html: `<div class="flex items-center justify-center w-10 h-10 ${bgColor} rounded-full border-3 border-white shadow-lg cursor-pointer ${hoverColor} transition-colors">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
+          </svg>
+        </div>`,
+        className: "custom-cctv-marker",
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      });
+    };
 
     // Add CCTV markers (only nearby ones)
     nearbyCCTVs.forEach((cctv) => {
+      const isOnline = cctvStatus.get(cctv.id) ?? true; // Default to online (blue) if not checked yet
+      const cctvIcon = createCCTVIcon(isOnline);
+
       const marker = L.marker([cctv.lat, cctv.lng], {
         icon: cctvIcon,
       }).addTo(map);
@@ -521,9 +543,12 @@ export default function RouteMap() {
       marker.bindPopup(`
         <div class="text-center">
           <b>${cctv.name}</b><br>
+          <span class="text-xs ${isOnline ? 'text-green-600' : 'text-red-600'}">
+            ${isOnline ? '● Online' : '● Offline'}
+          </span><br>
           <button
             onclick="window.openCCTVModal('${cctv.id}')"
-            class="mt-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            class="mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
           >
             Watch Stream
           </button>
@@ -532,8 +557,7 @@ export default function RouteMap() {
 
       // Make marker clickable to open CCTV modal
       marker.on("click", () => {
-        setSelectedCCTV(cctv);
-        setShowCCTV(true);
+        handleOpenCCTVModal(cctv);
       });
 
       cctvMarkersRef.current.push(marker);
@@ -543,11 +567,10 @@ export default function RouteMap() {
     (window as any).openCCTVModal = (id: string) => {
       const cctv = CCTVS.find((c) => c.id === id);
       if (cctv) {
-        setSelectedCCTV(cctv);
-        setShowCCTV(true);
+        handleOpenCCTVModal(cctv);
       }
     };
-  }, [nearbyCCTVs]);
+  }, [nearbyCCTVs, cctvStatus, CCTVS]);
 
   useEffect(() => {
     // Fetch route data from API
@@ -822,13 +845,22 @@ export default function RouteMap() {
                 <span>Route</span>
               </div>
             )}
+            <div className="text-xs font-medium text-gray-400 mt-2 mb-1">CCTV Status</div>
+            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+              <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                </svg>
+              </div>
+              <span>Online</span>
+            </div>
             <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
               <div className="w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
                 <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                 </svg>
               </div>
-              <span>CCTV</span>
+              <span>Offline</span>
             </div>
           </div>
         </div>
@@ -1179,32 +1211,36 @@ export default function RouteMap() {
                     <span className="text-sm font-normal text-gray-500">({nearbyCCTVs.length})</span>
                   </h2>
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
-                    {nearbyCCTVs.map((cctv) => (
-                      <button
-                        key={cctv.id}
-                        onClick={() => {
-                          setSelectedCCTV(cctv);
-                          setShowCCTV(true);
-                        }}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors text-left"
-                      >
-                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                    {nearbyCCTVs.map((cctv) => {
+                      const isOnline = cctvStatus.get(cctv.id) ?? true;
+                      const bgClass = isOnline ? 'bg-blue-100' : 'bg-red-100';
+                      const iconClass = isOnline ? 'text-blue-600' : 'text-red-600';
+                      const borderClass = isOnline ? 'hover:border-blue-300 hover:bg-blue-50' : 'hover:border-red-300 hover:bg-red-50';
+                      const statusText = isOnline ? 'Online' : 'Offline';
+                      const statusClass = isOnline ? 'text-green-600' : 'text-red-600';
+
+                      return (
+                        <button
+                          key={cctv.id}
+                          onClick={() => handleOpenCCTVModal(cctv)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 ${borderClass} transition-colors text-left`}
+                        >
+                          <div className={`w-10 h-10 ${bgClass} rounded-full flex items-center justify-center`}>
+                            <svg className={`w-5 h-5 ${iconClass}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{cctv.name}</p>
+                            <p className={`text-xs ${statusClass}`}>{statusText}</p>
+                          </div>
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{cctv.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
-                          </p>
-                        </div>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1259,6 +1295,7 @@ export default function RouteMap() {
             mapRef.current.setView([newCCTV.lat, newCCTV.lng], mapRef.current.getZoom());
           }
         }}
+        onError={handleCCTVError}
       />
     </div>
   );

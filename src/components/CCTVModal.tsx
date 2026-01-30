@@ -21,13 +21,22 @@ interface CCTVModalProps {
     streamUrl: string;
   }>;
   onCCTVChange?: (cctv: { id: string; name: string; lat: number; lng: number; streamUrl: string }) => void;
+  onError?: (cctvId: string, hasError: boolean) => void;
 }
 
-export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTVChange }: CCTVModalProps) {
+export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTVChange, onError }: CCTVModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingProxy, setUsingProxy] = useState(false);
+
+  // Wrapper function that calls both setError and onError
+  const setErrorWithCallback = (errorMsg: string | null) => {
+    setError(errorMsg);
+    if (cctv?.id && onError) {
+      onError(cctv.id, errorMsg !== null);
+    }
+  };
 
   // Get current CCTV index
   const currentIndex = allCCTVs.length > 0 && cctv
@@ -49,7 +58,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
 
   // Clear error when CCTV changes
   useEffect(() => {
-    setError(null);
+    setErrorWithCallback(null);
     setLoading(true);
   }, [cctv?.id]);
 
@@ -62,7 +71,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
       }
 
       const video = videoRef.current;
-      setError(null);
+      setErrorWithCallback(null);
       setLoading(true);
 
       // Clean up previous HLS instance
@@ -76,14 +85,14 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
 
       // Check if streamUrl exists
       if (!streamUrl) {
-        setError("No stream URL available for this CCTV.");
+        setErrorWithCallback("No stream URL available for this CCTV.");
         setLoading(false);
         return;
       }
 
       // Check if the URL is a blob URL (not supported)
       if (streamUrl.startsWith("blob:")) {
-        setError("Blob URLs are not supported. Please use a direct stream URL (HLS, MP4, etc.)");
+        setErrorWithCallback("Blob URLs are not supported. Please use a direct stream URL (HLS, MP4, etc.)");
         setLoading(false);
         return;
       }
@@ -110,7 +119,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
           if (contentType.includes("application/json")) {
             const data = await checkResponse.json();
             if (data.error) {
-              setError("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
+              setErrorWithCallback("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
               setLoading(false);
               return;
             }
@@ -158,7 +167,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
                   if (response.error) {
                     // Trigger error with the proxy's message
                     if (response.status === 404 || response.error === "Stream not available") {
-                      setError("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
+                      setErrorWithCallback("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
                       setLoading(false);
                     }
                   }
@@ -181,7 +190,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         setLoading(false);
         video.play().catch((e) => {
           console.error("Autoplay failed:", e);
-          setError("Click to play video (autoplay blocked by browser)");
+          setErrorWithCallback("Click to play video (autoplay blocked by browser)");
         });
       });
 
@@ -190,13 +199,13 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
 
         if (data.fatal) {
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            setError(
+            setErrorWithCallback(
               "Network error loading stream. The CCTV may be offline or experiencing connection issues. " +
               "Try opening the stream directly in a new tab."
             );
             setLoading(false);
           } else {
-            setError("Failed to load stream. The stream URL may be invalid or offline.");
+            setErrorWithCallback("Failed to load stream. The stream URL may be invalid or offline.");
             setLoading(false);
           }
         }
@@ -214,7 +223,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         });
       });
       video.addEventListener("error", () => {
-        setError("Failed to load stream. The CCTV may be offline.");
+        setErrorWithCallback("Failed to load stream. The CCTV may be offline.");
         setLoading(false);
       });
     }
@@ -228,7 +237,7 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         });
       });
       video.addEventListener("error", () => {
-        setError("Failed to load video. Check if the URL is correct.");
+        setErrorWithCallback("Failed to load video. Check if the URL is correct.");
         setLoading(false);
       });
     }
