@@ -133,114 +133,114 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
       }
 
       // Try HLS.js for .m3u8 streams
-    if (streamUrl.includes(".m3u8") || Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        // Set the base URL for resolving relative paths in the playlist
-        // This ensures segments are loaded from the same origin as the m3u8 file
-        xhrSetup: (xhr, url) => {
-          // Check if the component has been unmounted before sending the request
-          if (abortController.signal.aborted) {
-            xhr.abort();
-            return;
-          }
-          xhr.timeout = 15000; // 15 second timeout
-          // Set withCredentials to false for cross-origin requests
-          xhr.withCredentials = false;
+      if (streamUrl.includes(".m3u8") || Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          // Set the base URL for resolving relative paths in the playlist
+          // This ensures segments are loaded from the same origin as the m3u8 file
+          xhrSetup: (xhr, url) => {
+            // Check if the component has been unmounted before sending the request
+            if (abortController.signal.aborted) {
+              xhr.abort();
+              return;
+            }
+            xhr.timeout = 15000; // 15 second timeout
+            // Set withCredentials to false for cross-origin requests
+            xhr.withCredentials = false;
 
-          // Listen for abort signal
-          abortController.signal.addEventListener('abort', () => {
-            xhr.abort();
-          });
+            // Listen for abort signal
+            abortController.signal.addEventListener('abort', () => {
+              xhr.abort();
+            });
 
-          // Intercept response to check for JSON error from proxy
-          const originalOnReadyStateChange = xhr.onreadystatechange;
-          xhr.onreadystatechange = function(this: XMLHttpRequest, event: Event) {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-              try {
-                const contentType = xhr.getResponseHeader("content-type") || "";
-                if (contentType.includes("application/json")) {
-                  const response = JSON.parse(xhr.responseText);
-                  if (response.error) {
-                    // Trigger error with the proxy's message
-                    if (response.status === 404 || response.error === "Stream not available") {
-                      setErrorWithCallback("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
-                      setLoading(false);
+            // Intercept response to check for JSON error from proxy
+            const originalOnReadyStateChange = xhr.onreadystatechange;
+            xhr.onreadystatechange = function (this: XMLHttpRequest, event: Event) {
+              if (xhr.readyState === 4 && xhr.status === 200) {
+                try {
+                  const contentType = xhr.getResponseHeader("content-type") || "";
+                  if (contentType.includes("application/json")) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.error) {
+                      // Trigger error with the proxy's message
+                      if (response.status === 404 || response.error === "Stream not available") {
+                        setErrorWithCallback("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
+                        setLoading(false);
+                      }
                     }
                   }
+                } catch (e) {
+                  // Not JSON, continue normally
                 }
-              } catch (e) {
-                // Not JSON, continue normally
               }
-            }
-            if (originalOnReadyStateChange) {
-              originalOnReadyStateChange.call(this, event);
-            }
-          };
-        },
-      });
-
-      hls.loadSource(proxiedUrl);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setLoading(false);
-        video.play().catch((e) => {
-          console.error("Autoplay failed:", e);
-          setErrorWithCallback("Click to play video (autoplay blocked by browser)");
+              if (originalOnReadyStateChange) {
+                originalOnReadyStateChange.call(this, event);
+              }
+            };
+          },
         });
-      });
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error("HLS error:", data);
+        hls.loadSource(proxiedUrl);
+        hls.attachMedia(video);
 
-        if (data.fatal) {
-          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            setErrorWithCallback(
-              "Network error loading stream. The CCTV may be offline or experiencing connection issues. " +
-              "Try opening the stream directly in a new tab."
-            );
-            setLoading(false);
-          } else {
-            setErrorWithCallback("Failed to load stream. The stream URL may be invalid or offline.");
-            setLoading(false);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setLoading(false);
+          video.play().catch((e) => {
+            console.error("Autoplay failed:", e);
+            setErrorWithCallback("Click to play video (autoplay blocked by browser)");
+          });
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error("HLS error:", data);
+
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              setErrorWithCallback(
+                "Network error loading stream. The CCTV may be offline or experiencing connection issues. " +
+                "Try opening the stream directly in a new tab."
+              );
+              setLoading(false);
+            } else {
+              setErrorWithCallback("Failed to load stream. The stream URL may be invalid or offline.");
+              setLoading(false);
+            }
           }
-        }
-      });
+        });
 
-      (video as any).hls = hls;
-    }
-    // Native HLS support (Safari)
-    else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = proxiedUrl;
-      video.addEventListener("loadedmetadata", () => {
-        setLoading(false);
-        video.play().catch((e) => {
-          console.error("Autoplay failed:", e);
+        (video as any).hls = hls;
+      }
+      // Native HLS support (Safari)
+      else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = proxiedUrl;
+        video.addEventListener("loadedmetadata", () => {
+          setLoading(false);
+          video.play().catch((e) => {
+            console.error("Autoplay failed:", e);
+          });
         });
-      });
-      video.addEventListener("error", () => {
-        setErrorWithCallback("Failed to load stream. The CCTV may be offline.");
-        setLoading(false);
-      });
-    }
-    // Direct video file (MP4, etc.)
-    else {
-      video.src = proxiedUrl;
-      video.addEventListener("loadeddata", () => {
-        setLoading(false);
-        video.play().catch((e) => {
-          console.error("Autoplay failed:", e);
+        video.addEventListener("error", () => {
+          setErrorWithCallback("Failed to load stream. The CCTV may be offline.");
+          setLoading(false);
         });
-      });
-      video.addEventListener("error", () => {
-        setErrorWithCallback("Failed to load video. Check if the URL is correct.");
-        setLoading(false);
-      });
-    }
+      }
+      // Direct video file (MP4, etc.)
+      else {
+        video.src = proxiedUrl;
+        video.addEventListener("loadeddata", () => {
+          setLoading(false);
+          video.play().catch((e) => {
+            console.error("Autoplay failed:", e);
+          });
+        });
+        video.addEventListener("error", () => {
+          setErrorWithCallback("Failed to load video. Check if the URL is correct.");
+          setLoading(false);
+        });
+      }
     };
 
     loadStream();
@@ -270,9 +270,15 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden">
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white">
+        <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-black to-blue-700 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            {error ? (
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            ) : (
+
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+            )}
+
             <div>
               <h2 className="text-lg font-semibold">{cctv.name}</h2>
               <p className="text-red-100 text-xs">
