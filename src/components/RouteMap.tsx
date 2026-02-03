@@ -56,6 +56,12 @@ interface Waypoint {
 
 // Map styles configuration
 const MAP_STYLES = {
+  google: {
+    name: "Google Maps",
+    url: "http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+  },
   voyager: {
     name: "Voyager (Google-like)",
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
@@ -212,7 +218,7 @@ export default function RouteMap() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCCTV, setSelectedCCTV] = useState<CCTV | null>(null);
   const [showCCTV, setShowCCTV] = useState(false);
-  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>("voyager");
+  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>("google");
   const [useMapboxTraffic, setUseMapboxTraffic] = useState(false);
   const [nearbyCCTVs, setNearbyCCTVs] = useState<CCTV[]>([]);
   const [CCTVS, setCCTVS] = useState<CCTV[]>([]);
@@ -408,7 +414,7 @@ export default function RouteMap() {
     const style = MAP_STYLES[mapStyle];
     const tileLayer = L.tileLayer(style.url, {
       attribution: style.attribution,
-      subdomains: "abcd",
+      subdomains: style.subdomains ?? 'abcd',
       maxZoom: 20,
     }).addTo(map);
 
@@ -431,7 +437,7 @@ export default function RouteMap() {
     const style = MAP_STYLES[mapStyle];
     const tileLayer = L.tileLayer(style.url, {
       attribution: style.attribution,
-      subdomains: "abcd",
+      subdomains: style.subdomains ?? 'abcd',
       maxZoom: 20,
     }).addTo(map);
 
