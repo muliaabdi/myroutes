@@ -66,21 +66,25 @@ const MAP_STYLES = {
     name: "Voyager (Google-like)",
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    subdomains: 'abcd',
   },
   dark: {
     name: "Dark Matter",
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    subdomains: 'abcd',
   },
   satellite: {
     name: "Satellite",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: 'Tiles &copy; Esri | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    subdomains: undefined,
   },
   osm: {
     name: "OpenStreetMap",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    subdomains: undefined,
   },
 };
 
