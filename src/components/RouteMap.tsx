@@ -224,6 +224,7 @@ export default function RouteMap() {
   const [showCCTV, setShowCCTV] = useState(false);
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>("google");
   const [useMapboxTraffic, setUseMapboxTraffic] = useState(false);
+  const [showAllCCTVs, setShowAllCCTVs] = useState(false);
   const [nearbyCCTVs, setNearbyCCTVs] = useState<CCTV[]>([]);
   const [CCTVS, setCCTVS] = useState<CCTV[]>([]);
   const [cctvStatus, setCctvStatus] = useState<Map<string, boolean>>(new Map());
@@ -435,7 +436,7 @@ export default function RouteMap() {
       ? [(origin.lat + destination.lat) / 2, (origin.lng + destination.lng) / 2]
       : [defaultCenter.lat, defaultCenter.lng];
 
-    const map = L.map(mapContainerRef.current).setView(center, 12);
+    const map = L.map(mapContainerRef.current, { zoomControl: false }).setView(center, 12);
 
     // Add initial tile layer
     const style = MAP_STYLES[mapStyle];
@@ -541,8 +542,9 @@ export default function RouteMap() {
       });
     };
 
-    // Add CCTV markers (only nearby ones)
-    nearbyCCTVs.forEach((cctv) => {
+    // Add CCTV markers (all or nearby depending on toggle)
+    const cctvsToShow = showAllCCTVs ? CCTVS : nearbyCCTVs;
+    cctvsToShow.forEach((cctv) => {
       const isOnline = cctvStatus.get(cctv.id) ?? true; // Default to online (blue) if not checked yet
       const cctvIcon = createCCTVIcon(isOnline);
 
@@ -580,7 +582,7 @@ export default function RouteMap() {
         handleOpenCCTVModal(cctv);
       }
     };
-  }, [nearbyCCTVs, cctvStatus, CCTVS]);
+  }, [nearbyCCTVs, cctvStatus, CCTVS, showAllCCTVs]);
 
   useEffect(() => {
     // Fetch route data from API
@@ -725,13 +727,23 @@ export default function RouteMap() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Route</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 mb-6">
             Using OSRM (Open Source Routing Machine) for routing. No API key required.
           </p>
+          <button
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              setRouteData(null);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -815,6 +827,22 @@ export default function RouteMap() {
             </label>
             <p className="text-[10px] text-gray-400 mt-1">
               Requires Mapbox API key
+            </p>
+          </div>
+
+          {/* Show All CCTVs toggle */}
+          <div className="bg-white rounded-lg shadow-lg p-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAllCCTVs}
+                onChange={(e) => setShowAllCCTVs(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-xs font-medium text-gray-600">Show All CCTVs</span>
+            </label>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {showAllCCTVs ? `Showing all ${CCTVS.length} CCTVs` : `Showing nearby CCTVs only`}
             </p>
           </div>
 
