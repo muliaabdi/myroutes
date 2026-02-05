@@ -892,7 +892,7 @@ export default function RouteMap() {
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <span>🏍️</span> MyRoutes
               </h1>
-              <p className="text-blue-100 text-sm mt-1">Route Planning & CCTV Monitoring</p>
+              <p className="text-blue-100 text-sm mt-1">Route Planning & CCTV Monitoring - Bandung Area</p>
             </div>
             <button
               onClick={() => {

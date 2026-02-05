@@ -11,7 +11,7 @@ const inter = Inter({
 // Site configuration
 const siteConfig = {
   name: "MyRoutes",
-  title: "MyRoutes - Route Planning & CCTV Monitoring",
+  title: "MyRoutes - Route Planning & CCTV Monitoring - Bandung Area",
   description: "Plan your motorcycle routes with real-time traffic updates and monitor live CCTV cameras along your journey. Free route planning tool with interactive maps.",
   url: "https://myroutes.muliaabdi.net",
   ogImage: "/og-image.png",
