@@ -11,8 +11,8 @@ const inter = Inter({
 // Site configuration
 const siteConfig = {
   name: "MyRoutes",
-  title: "MyRoutes - Route Planning & CCTV Monitoring - Bandung Area",
-  description: "Plan your motorcycle routes with real-time traffic updates and monitor live CCTV cameras along your journey. Free route planning tool with interactive maps.",
+  title: "CCTV Bandung Live - MyRoutes | Traffic Monitoring & Route Planning",
+  description: "Live CCTV Bandung - Monitor real-time traffic conditions with CCTV cameras across Bandung city. Free route planning tool with interactive maps, live traffic updates, and CCTV monitoring for motorcycle riders and drivers.",
   url: "https://myroutes.muliaabdi.net",
   ogImage: "/og-image.png",
   links: {
@@ -59,16 +59,17 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: siteConfig.title,
+        alt: "CCTV Bandung Live - MyRoutes Traffic Monitoring",
       },
     ],
+    localeAlternate: ["id_ID"],
   },
 
   // Twitter
   twitter: {
     card: "summary_large_image",
-    title: siteConfig.title,
-    description: siteConfig.description,
+    title: "CCTV Bandung Live - MyRoutes",
+    description: "Monitor live CCTV cameras across Bandung city. Real-time traffic monitoring and route planning for Bandung area.",
     images: [siteConfig.ogImage],
     creator: "@myroutes",
   },
@@ -95,17 +96,28 @@ export const metadata: Metadata = {
 
   // Additional SEO
   keywords: [
-    "route planning",
-    "motorcycle routes",
+    "CCTV Bandung",
+    "CCTV Bandung live",
+    "CCTV traffic Bandung",
+    "CCTV online Bandung",
+    "monitor CCTV Bandung",
+    "CCTV Dishub Bandung",
+    "CCTV ATCS Bandung",
+    "live traffic Bandung",
+    "CCTV kota Bandung",
+    "rute Bandung",
+    "route planning Bandung",
+    "motorcycle routes Bandung",
     "traffic monitoring",
-    "CCTV cameras",
-    "live traffic",
-    "GPS navigation",
+    "CCTV cameras Indonesia",
+    "live traffic updates",
+    "GPS navigation Bandung",
     "map navigation",
     "route optimizer",
-    "travel planning",
+    "travel planning Bandung",
     "bandung traffic",
     "indonesia routes",
+    "CCTV jalanan Bandung",
   ].join(", "),
 
   // Robots
@@ -164,6 +176,21 @@ export default function RootLayout({
               url: siteConfig.url,
               applicationCategory: "TravelNavigationApplication",
               operatingSystem: "Web",
+              locationCreated: {
+                "@type": "City",
+                name: "Bandung",
+                address: {
+                  "@type": "PostalAddress",
+                  addressLocality: "Bandung",
+                  addressRegion: "West Java",
+                  addressCountry: "Indonesia",
+                },
+              },
+              areaServed: {
+                "@type": "City",
+                name: "Bandung",
+                description: "Kota Bandung, West Java, Indonesia",
+              },
               offers: {
                 "@type": "Offer",
                 price: "0",
@@ -175,12 +202,21 @@ export default function RootLayout({
                 url: siteConfig.author.url,
               },
               featureList: [
+                "Live CCTV Bandung",
                 "Route Planning",
                 "Real-time Traffic Updates",
                 "CCTV Camera Monitoring",
                 "Interactive Maps",
                 "Waypoint Management",
                 "Multiple Map Styles",
+                "Traffic Condition Monitoring",
+              ],
+              keywords: [
+                "CCTV Bandung",
+                "CCTV live Bandung",
+                "traffic monitoring",
+                "route planning",
+                "Bandung navigation",
               ],
             }),
           }}
