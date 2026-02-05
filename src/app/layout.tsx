@@ -62,7 +62,6 @@ export const metadata: Metadata = {
         alt: "CCTV Bandung Live - MyRoutes Traffic Monitoring",
       },
     ],
-    localeAlternate: ["id_ID"],
   },
 
   // Twitter
