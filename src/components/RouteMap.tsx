@@ -1212,7 +1212,7 @@ export default function RouteMap() {
             <>
               {/* Route Summary */}
               <div className="p-6 border-b">
-                <div className="flex items-center gap-3">
+                {/* <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                     <span className="text-green-600 font-bold">A</span>
                   </div>
@@ -1236,9 +1236,9 @@ export default function RouteMap() {
                       {routeData.summary.endAddress}
                     </p>
                   </div>
-                </div>
+                </div> */}
 
-                <div className="mt-6 grid grid-cols-2 gap-4">
+                <div className="mt-2 grid grid-cols-2 gap-4">
                   <div className="bg-blue-50 rounded-lg p-4">
                     <div className="text-2xl mb-1">📏</div>
                     <p className="text-2xl font-bold text-blue-600">

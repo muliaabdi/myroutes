@@ -266,6 +266,75 @@ export default function RootLayout({
             }),
           }}
         />
+
+        {/* Structured Data - FAQ Page */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                {
+                  "@type": "Question",
+                  name: "What is MyRoutes CCTV Bandung?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "MyRoutes is a free web application that provides live CCTV monitoring from Bandung's Dishub ATCS cameras, along with route planning and real-time traffic updates for Bandung city, Indonesia.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "How do I access live CCTV Bandung cameras?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Simply visit myroutes.muliaabdi.net, and the map will show CCTV camera locations. Click on any blue camera icon to view the live stream. Use the 'Show All CCTVs' toggle to see all available cameras.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Is MyRoutes CCTV Bandung free to use?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Yes, MyRoutes is completely free. No registration or API key is required to access CCTV Bandung live feeds or route planning features.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "What areas in Bandung are covered by CCTV cameras?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "MyRoutes covers major intersections in Bandung including Jalan Asia Afrika, Jalan Gatot Subroto, Jalan Padjadjaran, Jalan Sudirman, Jalan Dago, Simpang Lima, Simpang Dago, Simpang Pasteur, Simpang Gasibu, Pasupati bridge, and many more strategic locations across the city.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Can I plan routes with MyRoutes?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Yes! MyRoutes includes a route planning feature. Set your origin and destination points on the map, and the system will calculate the optimal route showing distance, estimated travel time, and nearby CCTV cameras along the way.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Does MyRoutes work on mobile devices?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Yes, MyRoutes is fully responsive and works on all mobile devices including smartphones and tablets. The interface is optimized for touch interaction and on-the-go traffic monitoring.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "What is the source of CCTV Bandung footage?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "The CCTV footage is sourced from Dishub Bandung's ATCS (Area Traffic Control System) cameras, which are installed at major intersections throughout the city for traffic monitoring and management.",
+                  },
+                },
+              ],
+            }),
+          }}
+        />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
