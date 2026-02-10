@@ -772,7 +772,7 @@ export default function RouteMap() {
 
         {/* Map controls overlay */}
         {/* Hamburger button - show on mobile only */}
-        <div className="absolute top-4 right-4 z-20 md:hidden">
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end md:hidden">
           <button
             onClick={() => {
               setShowSidebar(!showSidebar);
@@ -793,6 +793,21 @@ export default function RouteMap() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
+          </button>
+
+          {/* Show All CCTVs toggle - mobile only */}
+          <button
+            onClick={() => setShowAllCCTVs(!showAllCCTVs)}
+            className={`bg-white rounded-lg shadow-lg px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 ${showAllCCTVs ? 'ring-2 ring-blue-500' : ''}`}
+            title={showAllCCTVs ? "Hide all CCTVs" : "Show all CCTVs"}
+          >
+            <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-xs text-gray-700">
+              {showAllCCTVs ? 'All CCTVs' : 'Nearby CCTVs'}
+            </span>
           </button>
         </div>
 
@@ -950,11 +965,11 @@ export default function RouteMap() {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${origin ? 'bg-green-100' : 'bg-gray-100'}`}>
                   <span className={`font-bold ${origin ? 'text-green-600' : 'text-gray-400'}`}>A</span>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0 overflow-hidden">
                   <p className="text-xs text-gray-500">From</p>
                   {origin ? (
                     <>
-                      <p className="text-sm font-medium text-gray-800 truncate">{origin.address}</p>
+                      <p className="text-sm font-medium text-gray-800 truncate" title={origin.address}>{origin.address}</p>
                       <p className="text-xs text-gray-400">{origin.lat.toFixed(6)}, {origin.lng.toFixed(6)}</p>
                     </>
                   ) : (
@@ -991,11 +1006,11 @@ export default function RouteMap() {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${destination ? 'bg-red-100' : 'bg-gray-100'}`}>
                   <span className={`font-bold ${destination ? 'text-red-600' : 'text-gray-400'}`}>B</span>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0 overflow-hidden">
                   <p className="text-xs text-gray-500">To</p>
                   {destination ? (
                     <>
-                      <p className="text-sm font-medium text-gray-800 truncate">{destination.address}</p>
+                      <p className="text-sm font-medium text-gray-800 truncate" title={destination.address}>{destination.address}</p>
                       <p className="text-xs text-gray-400">{destination.lat.toFixed(6)}, {destination.lng.toFixed(6)}</p>
                     </>
                   ) : (
@@ -1157,7 +1172,7 @@ export default function RouteMap() {
                           <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center shrink-0">
                             <span className="text-white text-xs font-bold">{index + 1}</span>
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 overflow-hidden">
                             <p className="text-xs text-gray-600 truncate">{wp.address}</p>
                           </div>
                           <button
@@ -1201,9 +1216,9 @@ export default function RouteMap() {
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                     <span className="text-green-600 font-bold">A</span>
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-sm text-gray-500 truncate">From</p>
-                    <p className="text-sm font-medium text-gray-800 truncate">
+                    <p className="text-sm font-medium text-gray-800 truncate" title={routeData.summary.startAddress}>
                       {routeData.summary.startAddress}
                     </p>
                   </div>
@@ -1215,9 +1230,9 @@ export default function RouteMap() {
                   <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                     <span className="text-red-600 font-bold">B</span>
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-sm text-gray-500 truncate">To</p>
-                    <p className="text-sm font-medium text-gray-800 truncate">
+                    <p className="text-sm font-medium text-gray-800 truncate" title={routeData.summary.endAddress}>
                       {routeData.summary.endAddress}
                     </p>
                   </div>
@@ -1269,7 +1284,7 @@ export default function RouteMap() {
                               <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                             </svg>
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 overflow-hidden">
                             <p className="text-sm font-medium text-gray-800 truncate">{cctv.name}</p>
                             <p className={`text-xs ${statusClass}`}>{statusText}</p>
                           </div>
