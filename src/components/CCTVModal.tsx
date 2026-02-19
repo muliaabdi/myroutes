@@ -62,6 +62,26 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
     setLoading(true);
   }, [cctv?.id]);
 
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goToPrevious();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goToNext();
+      } else if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, currentIndex, allCCTVs.length]);
+
   useEffect(() => {
     const abortController = new AbortController();
 
