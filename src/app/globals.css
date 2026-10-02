@@ -48,7 +48,7 @@ body {
   cursor: crosshair !important;
 }
 
-/* Leaflet Modern Popup Styling */
+/* Leaflet Modern Popup Styling - Light Mode */
 .leaflet-popup-content-wrapper {
   background: rgba(255, 255, 255, 0.96) !important;
   backdrop-filter: blur(16px) !important;
@@ -57,11 +57,44 @@ body {
   border-radius: 16px !important;
   box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08) !important;
   padding: 4px !important;
+  color: #0f172a !important;
 }
 
 .leaflet-popup-tip {
   background: rgba(255, 255, 255, 0.96) !important;
   box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05) !important;
+}
+
+.leaflet-popup-close-button {
+  color: #64748b !important;
+  padding: 6px 8px !important;
+  transition: color 0.15s ease !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #0f172a !important;
+}
+
+/* Leaflet Modern Popup Styling - Dark Mode */
+.dark .leaflet-popup-content-wrapper {
+  background: rgba(24, 24, 27, 0.95) !important;
+  border-color: rgba(63, 63, 70, 0.8) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
+  color: #f4f4f5 !important;
+}
+
+.dark .leaflet-popup-tip {
+  background: rgba(24, 24, 27, 0.95) !important;
+  border-color: rgba(63, 63, 70, 0.8) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark .leaflet-popup-close-button {
+  color: #a1a1aa !important;
+}
+
+.dark .leaflet-popup-close-button:hover {
+  color: #ffffff !important;
 }
 
 .leaflet-popup-content {

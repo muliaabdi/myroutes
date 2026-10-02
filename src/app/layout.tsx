@@ -159,6 +159,23 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://atcs-dishub.bandung.go.id" />
         <link rel="dns-prefetch" href="https://cctv.bandung.go.id" />
 
+        {/* Theme Initialization to prevent flicker */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var savedTheme = localStorage.getItem('theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+
         {/* Mobile & App Meta */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="theme-color" content="#10b981" media="(prefers-color-scheme: light)" />

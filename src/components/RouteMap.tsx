@@ -339,11 +339,35 @@ export default function RouteMap() {
     else setDestinationText("");
   }, [destination]);
 
-  // UI state
   const [showSidebar, setShowSidebar] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  // Sync theme with document class
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains("dark");
+    setTheme(isDark ? "dark" : "light");
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      if (mapStyle === "google" || mapStyle === "voyager") {
+        setMapStyle("dark");
+      }
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      if (mapStyle === "dark") {
+        setMapStyle("google");
+      }
+    }
+  }, [theme, mapStyle]);
 
   // Load saved points from localStorage
   useEffect(() => {
@@ -699,11 +723,11 @@ export default function RouteMap() {
         <div class="p-1 min-w-[200px]">
           <div class="flex items-center gap-1.5 mb-1.5">
             <span class="w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-rose-500"}"></span>
-            <span class="text-[10px] font-bold tracking-wider uppercase ${isOnline ? "text-emerald-600" : "text-rose-600"}">
+            <span class="text-[10px] font-bold tracking-wider uppercase ${isOnline ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}">
               ${isOnline ? "Online Live" : "Offline"}
             </span>
           </div>
-          <p class="font-semibold text-xs text-slate-900 leading-snug mb-2.5">${cctv.name}</p>
+          <p class="font-semibold text-xs text-slate-900 dark:text-zinc-100 leading-snug mb-2.5">${cctv.name}</p>
           <button
             onclick="window.openCCTVModal('${cctv.id}')"
             class="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5"
@@ -770,43 +794,43 @@ export default function RouteMap() {
 
       const marker = L.marker([spklu.lat, spklu.lng], { icon });
       marker.bindPopup(`
-        <div class="p-1 min-w-[220px] max-w-[260px]">
+        <div class="p-1 min-w-[220px] max-w-[270px]">
           <div class="flex items-center justify-between gap-1 mb-1.5">
             <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-md ${
               isFast
-                ? "bg-amber-50 text-amber-800 border border-amber-200"
-                : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
             }">
               ${spklu.chargingSpeed}
             </span>
             ${
               spklu.is24h
-                ? '<span class="text-[9px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">24 Jam</span>'
+                ? '<span class="text-[9px] font-semibold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">24 Jam</span>'
                 : ""
             }
           </div>
-          <p class="font-bold text-xs text-slate-900 leading-tight mb-1">${spklu.name}</p>
-          <p class="text-[11px] text-slate-500 mb-2 leading-snug line-clamp-2">${spklu.address || spklu.city}</p>
-          <div class="grid grid-cols-2 gap-1 text-[10px] bg-slate-50 p-1.5 rounded-lg mb-2.5">
+          <p class="font-bold text-xs text-slate-900 dark:text-zinc-100 leading-tight mb-1">${spklu.name}</p>
+          <p class="text-[11px] text-slate-500 dark:text-zinc-400 mb-2 leading-snug line-clamp-2">${spklu.address || spklu.city}</p>
+          <div class="grid grid-cols-2 gap-1 text-[10px] bg-slate-50 dark:bg-zinc-800/70 p-1.5 rounded-lg mb-2.5 border border-slate-100 dark:border-zinc-800">
             <div>
-              <span class="text-slate-400 block text-[9px]">Daya & Soket</span>
-              <span class="font-semibold text-slate-700 truncate block">${spklu.powerKw} kW • ${spklu.plugType}</span>
+              <span class="text-slate-400 dark:text-zinc-500 block text-[9px]">Daya & Soket</span>
+              <span class="font-semibold text-slate-700 dark:text-zinc-200 truncate block">${spklu.powerKw} kW • ${spklu.plugType}</span>
             </div>
             <div>
-              <span class="text-slate-400 block text-[9px]">Provider & Lokasi</span>
-              <span class="font-semibold text-slate-700 truncate block">${spklu.provider} (${spklu.category})</span>
+              <span class="text-slate-400 dark:text-zinc-500 block text-[9px]">Provider & Lokasi</span>
+              <span class="font-semibold text-slate-700 dark:text-zinc-200 truncate block">${spklu.provider} (${spklu.category})</span>
             </div>
           </div>
           <div class="flex gap-1.5">
             <button
               onclick="window.setSPKLUDestination(${spklu.lat}, ${spklu.lng}, '${spklu.name.replace(/'/g, "\\'")}')"
-              class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold rounded-lg shadow-sm transition-colors text-center"
+              class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-semibold rounded-lg shadow-sm transition-all text-center"
             >
               Rute ke Sini
             </button>
             <button
               onclick="window.addSPKLUWaypoint(${spklu.lat}, ${spklu.lng}, '${spklu.name.replace(/'/g, "\\'")}')"
-              class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold rounded-lg transition-colors"
+              class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200/80 dark:border-zinc-700 text-[11px] font-semibold rounded-lg transition-colors"
               title="Tambah Titik Singgah"
             >
               + Singgah
@@ -952,7 +976,7 @@ export default function RouteMap() {
     const originMarker = L.marker([routeData.summary.origin.lat, routeData.summary.origin.lng], {
       icon: originIcon,
     }).addTo(map);
-    originMarker.bindPopup(`<div class="p-1"><b class="text-xs text-emerald-700">Titik Awal (A)</b><p class="text-xs text-slate-700 mt-1">${routeData.summary.startAddress}</p></div>`);
+    originMarker.bindPopup(`<div class="p-1"><b class="text-xs text-emerald-700 dark:text-emerald-400">Titik Awal (A)</b><p class="text-xs text-slate-700 dark:text-zinc-200 mt-1">${routeData.summary.startAddress}</p></div>`);
     markersRef.current.push(originMarker);
 
     // Waypoints
@@ -969,7 +993,7 @@ export default function RouteMap() {
         popupAnchor: [0, -14],
       });
       const wpMarker = L.marker([wp.lat, wp.lng], { icon: waypointIcon }).addTo(map);
-      wpMarker.bindPopup(`<div class="p-1"><b class="text-xs text-amber-700">Singgah ${index + 1}</b><p class="text-xs text-slate-700 mt-1">${wp.address}</p></div>`);
+      wpMarker.bindPopup(`<div class="p-1"><b class="text-xs text-amber-700 dark:text-amber-400">Singgah ${index + 1}</b><p class="text-xs text-slate-700 dark:text-zinc-200 mt-1">${wp.address}</p></div>`);
       waypointMarkersRef.current.push(wpMarker);
     });
 
@@ -988,7 +1012,7 @@ export default function RouteMap() {
     const destMarker = L.marker([routeData.summary.destination.lat, routeData.summary.destination.lng], {
       icon: destIcon,
     }).addTo(map);
-    destMarker.bindPopup(`<div class="p-1"><b class="text-xs text-rose-700">Tujuan (B)</b><p class="text-xs text-slate-700 mt-1">${routeData.summary.endAddress}</p></div>`);
+    destMarker.bindPopup(`<div class="p-1"><b class="text-xs text-rose-700 dark:text-rose-400">Tujuan (B)</b><p class="text-xs text-slate-700 dark:text-zinc-200 mt-1">${routeData.summary.endAddress}</p></div>`);
     markersRef.current.push(destMarker);
 
     // Calculate nearby CCTVs (150m buffer)
@@ -1144,6 +1168,24 @@ export default function RouteMap() {
               </div>
             )}
           </div>
+
+          {/* Theme Toggle (Dark / Light) */}
+          <button
+            onClick={toggleTheme}
+            className="p-2.5 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            title={theme === "dark" ? "Ganti ke Mode Terang (Light Mode)" : "Ganti ke Mode Gelap (Dark Mode)"}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
 
           {/* Traffic Toggle */}
           <button
