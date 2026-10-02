@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CCTVModal from "./CCTVModal";
@@ -58,75 +58,56 @@ interface Waypoint {
 const MAP_STYLES = {
   google: {
     name: "Google Maps",
-    url: "http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    url: "https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+    attribution: '&copy; Google Maps contributors | Leaflet',
+    subdomains: ["mt0", "mt1", "mt2", "mt3"],
   },
   voyager: {
-    name: "Voyager (Google-like)",
+    name: "Voyager Modern",
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
-    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> | Leaflet',
+    subdomains: "abcd",
   },
   dark: {
     name: "Dark Matter",
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
-    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> | Leaflet',
+    subdomains: "abcd",
   },
   satellite: {
-    name: "Satellite",
+    name: "Citra Satelit",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: 'Tiles &copy; Esri | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    attribution: "Tiles &copy; Esri | Leaflet",
     subdomains: undefined,
   },
   osm: {
     name: "OpenStreetMap",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Powered by <a href="https://leafletjs.com/">Leaflet</a>',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     subdomains: undefined,
   },
 };
 
-// Helper function to calculate distance between two coordinates in meters using Haversine formula
+// Helper: Haversine distance in meters
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000; // Earth's radius in meters
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) *
-    Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Helper function to calculate distance from point to polyline (route)
-// Returns the minimum distance from the point to any segment of the polyline
-function distanceToPolyline(point: { lat: number; lng: number }, polyline: { lat: number; lng: number }[]): number {
-  let minDistance = Infinity;
-
-  for (let i = 0; i < polyline.length - 1; i++) {
-    const start = polyline[i];
-    const end = polyline[i + 1];
-
-    // Calculate distance from point to line segment
-    const distance = distanceToSegment(point, start, end);
-    minDistance = Math.min(minDistance, distance);
-  }
-
-  return minDistance;
-}
-
-// Helper function to calculate distance from point to line segment
+// Distance from point to line segment
 function distanceToSegment(
   point: { lat: number; lng: number },
   start: { lat: number; lng: number },
   end: { lat: number; lng: number }
 ): number {
-  // Convert to radians
   const lat1 = (start.lat * Math.PI) / 180;
   const lng1 = (start.lng * Math.PI) / 180;
   const lat2 = (end.lat * Math.PI) / 180;
@@ -134,39 +115,21 @@ function distanceToSegment(
   const lat3 = (point.lat * Math.PI) / 180;
   const lng3 = (point.lng * Math.PI) / 180;
 
-  // Earth's radius in meters
   const R = 6371000;
-
-  // Calculate the projection factor
   const dLng = lng2 - lng1;
   const dLat = lat2 - lat1;
-
-  // Length of the segment squared
   const segLen2 = dLat * dLat + dLng * dLng;
 
-  // If segment is too short, just return distance to start
   if (segLen2 < 1e-12) {
     return calculateDistance(start.lat, start.lng, point.lat, point.lng);
   }
 
-  // Calculate the projection parameter t
   const t = ((lat3 - lat1) * dLat + (lng3 - lng1) * dLng) / segLen2;
+  if (t < 0) return calculateDistance(start.lat, start.lng, point.lat, point.lng);
+  if (t > 1) return calculateDistance(end.lat, end.lng, point.lat, point.lng);
 
-  // If t < 0, closest point is start
-  if (t < 0) {
-    return calculateDistance(start.lat, start.lng, point.lat, point.lng);
-  }
-
-  // If t > 1, closest point is end
-  if (t > 1) {
-    return calculateDistance(end.lat, end.lng, point.lat, point.lng);
-  }
-
-  // Projection point on the segment
   const projLat = lat1 + t * dLat;
   const projLng = lng1 + t * dLng;
-
-  // Calculate the great circle distance from point to projection
   const dLatProj = projLat - lat3;
   const dLngProj = projLng - lng3;
   const a = dLatProj * dLatProj + dLngProj * dLngProj * Math.cos((lat3 + projLat) / 2);
@@ -174,15 +137,50 @@ function distanceToSegment(
   return R * Math.sqrt(a);
 }
 
-// Filter CCTVs that are near the route (within 300 meters) and sort by route order (origin to destination)
-function getCCTVsNearRoute(cctvs: CCTV[], routeCoordinates: { lat: number; lng: number }[], maxDistance: number = 300): CCTV[] {
-  // Find the closest route point index for each CCTV
-  const cctvWithRouteIndex = cctvs
+// Distance from point to polyline
+function distanceToPolyline(point: { lat: number; lng: number }, polyline: { lat: number; lng: number }[]): number {
+  let minDistance = Infinity;
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const distance = distanceToSegment(point, polyline[i], polyline[i + 1]);
+    minDistance = Math.min(minDistance, distance);
+  }
+  return minDistance;
+}
+
+// Optimized: Filter CCTVs near route with fast Bounding-Box pre-filtering
+function getCCTVsNearRoute(
+  cctvs: CCTV[],
+  routeCoordinates: { lat: number; lng: number }[],
+  maxDistance: number = 150
+): CCTV[] {
+  if (!routeCoordinates || routeCoordinates.length === 0 || cctvs.length === 0) return [];
+
+  // Bounding box with buffer (~0.003 degrees ≈ 330m)
+  const degBuffer = (maxDistance * 2.5) / 111000;
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (let i = 0; i < routeCoordinates.length; i++) {
+    const c = routeCoordinates[i];
+    if (c.lat < minLat) minLat = c.lat;
+    if (c.lat > maxLat) maxLat = c.lat;
+    if (c.lng < minLng) minLng = c.lng;
+    if (c.lng > maxLng) maxLng = c.lng;
+  }
+  minLat -= degBuffer;
+  maxLat += degBuffer;
+  minLng -= degBuffer;
+  maxLng += degBuffer;
+
+  // 1. Fast pre-filter: O(N) simple bounds check (discards 95% of CCTVs in <1ms)
+  const candidates = cctvs.filter(
+    (c) => c.lat >= minLat && c.lat <= maxLat && c.lng >= minLng && c.lng <= maxLng
+  );
+
+  // 2. Exact polyline check only for candidates (typically 10-25 CCTVs instead of 528)
+  const cctvWithRouteIndex = candidates
     .map((cctv) => {
       let minDistance = Infinity;
       let closestIndex = 0;
 
-      // Find the closest point on the route
       routeCoordinates.forEach((coord, index) => {
         const dist = Math.sqrt(
           Math.pow(cctv.lat - coord.lat, 2) + Math.pow(cctv.lng - coord.lng, 2)
@@ -193,19 +191,18 @@ function getCCTVsNearRoute(cctvs: CCTV[], routeCoordinates: { lat: number; lng: 
         }
       });
 
-      // Check if within max distance of the route (using the polyline distance function)
       const distanceToRoute = distanceToPolyline({ lat: cctv.lat, lng: cctv.lng }, routeCoordinates);
 
       return {
         cctv,
         closestIndex,
-        distanceToRoute
+        distanceToRoute,
       };
     })
-    .filter(item => item.distanceToRoute <= maxDistance)
+    .filter((item) => item.distanceToRoute <= maxDistance)
     .sort((a, b) => a.closestIndex - b.closestIndex);
 
-  return cctvWithRouteIndex.map(item => item.cctv);
+  return cctvWithRouteIndex.map((item) => item.cctv);
 }
 
 export default function RouteMap() {
@@ -213,12 +210,15 @@ export default function RouteMap() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  const cctvMarkersRef = useRef<L.Marker[]>([]);
+  const cctvLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const waypointMarkersRef = useRef<L.Marker[]>([]);
+  const trafficSegmentsRef = useRef<L.Polyline[]>([]);
+  const clickMarkerRef = useRef<L.Marker | null>(null);
 
   const [routeData, setRouteData] = useState<RouteData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCCTV, setSelectedCCTV] = useState<CCTV | null>(null);
   const [showCCTV, setShowCCTV] = useState(false);
@@ -228,120 +228,108 @@ export default function RouteMap() {
   const [nearbyCCTVs, setNearbyCCTVs] = useState<CCTV[]>([]);
   const [CCTVS, setCCTVS] = useState<CCTV[]>([]);
   const [cctvStatus, setCctvStatus] = useState<Map<string, boolean>>(new Map());
-  const trafficSegmentsRef = useRef<L.Polyline[]>([]);
-  const clickMarkerRef = useRef<L.Marker | null>(null);
 
-  // Origin and Destination coordinates - start null
+  // Origin, Destination, Waypoints
   const [origin, setOrigin] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [destination, setDestination] = useState<{ lat: number; lng: number; address: string } | null>(null);
-
-  // Waypoints for route customization
+  const [originText, setOriginText] = useState("");
+  const [destinationText, setDestinationText] = useState("");
+  const [activeSearchTarget, setActiveSearchTarget] = useState<"origin" | "destination" | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
 
-  // Map click mode: 'origin' | 'destination' | 'waypoint' | null
-  const [clickMode, setClickMode] = useState<'origin' | 'destination' | 'waypoint' | null>(null);
-  const clickModeRef = useRef<'origin' | 'destination' | 'waypoint' | null>(null);
+  // Click mode: 'origin' | 'destination' | 'waypoint' | null
+  const [clickMode, setClickMode] = useState<"origin" | "destination" | "waypoint" | null>(null);
+  const clickModeRef = useRef<"origin" | "destination" | "waypoint" | null>(null);
 
-  // Search state
+  // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{ name: string; address: { lat: number; lng: number } }>>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAbortRef = useRef<AbortController | null>(null);
 
-  // Sidebar visibility state
-  const [showSidebar, setShowSidebar] = useState(true);
-
-  // Load origin and destination from localStorage on mount
+  // Sync text inputs with origin & destination
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (origin) setOriginText(origin.address);
+    else setOriginText("");
+  }, [origin]);
 
+  useEffect(() => {
+    if (destination) setDestinationText(destination.address);
+    else setDestinationText("");
+  }, [destination]);
+
+  // UI state
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
+  const [showLayersMenu, setShowLayersMenu] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
+
+  // Load saved points from localStorage
+  useEffect(() => {
     try {
       const savedOrigin = localStorage.getItem("myroutes-origin");
       const savedDestination = localStorage.getItem("myroutes-destination");
-
-      if (savedOrigin) {
-        setOrigin(JSON.parse(savedOrigin));
-      }
-      if (savedDestination) {
-        setDestination(JSON.parse(savedDestination));
-      }
+      if (savedOrigin) setOrigin(JSON.parse(savedOrigin));
+      if (savedDestination) setDestination(JSON.parse(savedDestination));
     } catch (e) {
-      console.error("Failed to load route from localStorage:", e);
+      console.error("Failed to load saved route:", e);
     }
   }, []);
 
-  // Save origin to localStorage when it changes
+  // Save to localStorage
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     try {
-      if (origin) {
-        localStorage.setItem("myroutes-origin", JSON.stringify(origin));
-      } else {
-        localStorage.removeItem("myroutes-origin");
-      }
-    } catch (e) {
-      console.error("Failed to save origin to localStorage:", e);
-    }
+      if (origin) localStorage.setItem("myroutes-origin", JSON.stringify(origin));
+      else localStorage.removeItem("myroutes-origin");
+    } catch {}
   }, [origin]);
 
-  // Save destination to localStorage when it changes
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     try {
-      if (destination) {
-        localStorage.setItem("myroutes-destination", JSON.stringify(destination));
-      } else {
-        localStorage.removeItem("myroutes-destination");
-      }
-    } catch (e) {
-      console.error("Failed to save destination to localStorage:", e);
-    }
+      if (destination) localStorage.setItem("myroutes-destination", JSON.stringify(destination));
+      else localStorage.removeItem("myroutes-destination");
+    } catch {}
   }, [destination]);
 
-  // Load CCTV data dynamically
+  // Load CCTV data
   useEffect(() => {
-    const loadCCTVData = async () => {
+    const loadCCTVs = async () => {
       try {
-        const response = await fetch("/cctvs.json");
-        if (!response.ok) throw new Error("Failed to load CCTV data");
-        const data = await response.json();
-        const cctvs = data.map((c: any) => ({
+        const res = await fetch("/cctvs.json");
+        if (!res.ok) throw new Error("Failed to load CCTV data");
+        const data = await res.json();
+        const list: CCTV[] = data.map((c: any) => ({
           id: c.id,
           name: c.name,
           lat: parseFloat(c.lat),
           lng: parseFloat(c.lng),
           streamUrl: c.streamUrl,
         }));
-        setCCTVS(cctvs);
+        setCCTVS(list);
       } catch (err) {
-        console.error("Failed to load CCTV data:", err);
+        console.error("Error loading CCTV data:", err);
         setCCTVS([]);
       }
     };
-    loadCCTVData();
+    loadCCTVs();
   }, []);
 
-  // Handle opening CCTV modal
-  const handleOpenCCTVModal = (cctv: CCTV) => {
+  // Handle open CCTV modal
+  const handleOpenCCTVModal = useCallback((cctv: CCTV) => {
     setSelectedCCTV(cctv);
     setShowCCTV(true);
-  };
+  }, []);
 
-  // Handle CCTV error from modal
-  const handleCCTVError = (cctvId: string, hasError: boolean) => {
-    // Update status based on error state from modal
-    setCctvStatus(prev => new Map(prev).set(cctvId, !hasError));
-  };
+  const handleCCTVError = useCallback((cctvId: string, hasError: boolean) => {
+    setCctvStatus((prev) => new Map(prev).set(cctvId, !hasError));
+  }, []);
 
-  // Update ref when clickMode changes
   useEffect(() => {
     clickModeRef.current = clickMode;
   }, [clickMode]);
 
-  // Search for locations
+  // Geocode Search
   const searchLocations = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -349,135 +337,162 @@ export default function RouteMap() {
       return;
     }
 
-    // Cancel previous request
-    if (searchAbortRef.current) {
-      searchAbortRef.current.abort();
-    }
-
-    // Create new abort controller
-    const abortController = new AbortController();
-    searchAbortRef.current = abortController;
+    if (searchAbortRef.current) searchAbortRef.current.abort();
+    const abort = new AbortController();
+    searchAbortRef.current = abort;
 
     try {
       setSearchLoading(true);
-      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`, {
-        signal: abortController.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error("Search failed");
-      }
-
-      const data = await response.json();
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`, { signal: abort.signal });
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
       setSearchResults(data.results || []);
       setShowSearchResults(true);
-    } catch (error) {
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("Search error:", error);
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error("Search error:", err);
       }
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // Handle selecting a search result
-  const handleSelectLocation = (result: { name: string; address: { lat: number; lng: number } }) => {
-    const coords = result.address;
-    const locationData = { lat: coords.lat, lng: coords.lng, address: result.name };
+  const handleSelectLocation = (
+    item: { name: string; address: { lat: number; lng: number } },
+    target?: "origin" | "destination"
+  ) => {
+    const effectiveTarget = target || activeSearchTarget || clickMode || "origin";
+    const locationData = { lat: item.address.lat, lng: item.address.lng, address: item.name };
 
-    if (clickMode === "origin") {
+    if (effectiveTarget === "origin") {
       setOrigin(locationData);
-    } else if (clickMode === "destination") {
+      setOriginText(item.name);
+    } else if (effectiveTarget === "destination") {
       setDestination(locationData);
+      setDestinationText(item.name);
+    } else if (effectiveTarget === "waypoint") {
+      setWaypoints((prev) => [...prev, locationData]);
     }
 
-    // Clear search
     setSearchQuery("");
     setSearchResults([]);
     setShowSearchResults(false);
+    setActiveSearchTarget(null);
     setClickMode(null);
     clickModeRef.current = null;
 
-    // Move map to selected location
     if (mapRef.current) {
-      mapRef.current.setView([coords.lat, coords.lng], 14);
+      mapRef.current.setView([item.address.lat, item.address.lng], 14);
     }
   };
 
-  // Change map style
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-
-    // Remove existing tile layer
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
+  // Get User Current Location
+  const handleGetCurrentLocation = (target: "origin" | "destination" = "origin") => {
+    if (!navigator.geolocation) {
+      alert("Geolokasi tidak didukung oleh browser Anda.");
+      return;
     }
 
-    // Add new tile layer
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGettingLocation(false);
+        const { latitude, longitude } = pos.coords;
+        const locationData = {
+          lat: latitude,
+          lng: longitude,
+          address: "Lokasi Anda Saat Ini",
+        };
+        if (target === "origin") {
+          setOrigin(locationData);
+          setOriginText(locationData.address);
+        } else {
+          setDestination(locationData);
+          setDestinationText(locationData.address);
+        }
+
+        if (mapRef.current) {
+          mapRef.current.setView([latitude, longitude], 15);
+        }
+      },
+      (err) => {
+        setGettingLocation(false);
+        console.error("Geolocation error:", err);
+        alert("Gagal mendapatkan lokasi saat ini. Pastikan izin lokasi aktif.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Switch map tile layer
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
+
     const style = MAP_STYLES[mapStyle];
     const tileLayer = L.tileLayer(style.url, {
       attribution: style.attribution,
-      subdomains: style.subdomains ?? 'abcd',
+      subdomains: style.subdomains ?? "abcd",
       maxZoom: 20,
     }).addTo(map);
 
     tileLayerRef.current = tileLayer;
   }, [mapStyle]);
 
+  // Initialize Map
   useEffect(() => {
-    // Initialize map
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Default center (Bandung) when origin/destination not set
-    const defaultCenter = { lat: -6.9175, lng: 107.6191 };
-    const center: [number, number] = origin && destination
-      ? [(origin.lat + destination.lat) / 2, (origin.lng + destination.lng) / 2]
-      : [defaultCenter.lat, defaultCenter.lng];
+    const defaultCenter = { lat: -6.9175, lng: 107.6191 }; // Bandung center
+    const center: [number, number] =
+      origin && destination
+        ? [(origin.lat + destination.lat) / 2, (origin.lng + destination.lng) / 2]
+        : [defaultCenter.lat, defaultCenter.lng];
 
-    const map = L.map(mapContainerRef.current, { zoomControl: false }).setView(center, 12);
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: false,
+      preferCanvas: true,
+    }).setView(center, 13);
 
-    // Add initial tile layer
+    const cctvLayer = L.layerGroup().addTo(map);
+    cctvLayerGroupRef.current = cctvLayer;
+
     const style = MAP_STYLES[mapStyle];
     const tileLayer = L.tileLayer(style.url, {
       attribution: style.attribution,
-      subdomains: style.subdomains ?? 'abcd',
+      subdomains: style.subdomains ?? "abcd",
       maxZoom: 20,
     }).addTo(map);
 
     tileLayerRef.current = tileLayer;
     mapRef.current = map;
 
-    // Hide the default attribution control (we'll render our own)
-    const attributionControl = map.getContainer().querySelector('.leaflet-control-attribution') as HTMLElement;
-    if (attributionControl) {
-      attributionControl.style.display = 'none';
-    }
+    // Remove default attribution
+    const attribution = map.getContainer().querySelector(".leaflet-control-attribution") as HTMLElement;
+    if (attribution) attribution.style.display = "none";
 
-    // Add map click handler
-    map.on('click', (e) => {
-      const currentClickMode = clickModeRef.current;
-      if (!currentClickMode) return;
+    // Map Click Handler
+    map.on("click", (e) => {
+      const mode = clickModeRef.current;
+      if (!mode) return;
 
       const { lat, lng } = e.latlng;
       const coords = { lat, lng };
 
-      // Create or update temporary click marker
       if (clickMarkerRef.current) {
         map.removeLayer(clickMarkerRef.current);
       }
 
+      const badgeColor = mode === "origin" ? "bg-emerald-500" : mode === "destination" ? "bg-rose-500" : "bg-amber-500";
+      const badgeText = mode === "origin" ? "A" : mode === "destination" ? "B" : "+";
+
       const clickIcon = L.divIcon({
-        html: `<div class="flex items-center justify-center w-8 h-8 ${currentClickMode === 'origin' ? 'bg-green-500' :
-          currentClickMode === 'destination' ? 'bg-red-500' :
-            'bg-yellow-500'
-          } rounded-full border-2 border-white shadow-lg animate-pulse">
-          <span class="text-white text-xs font-bold">${currentClickMode === 'origin' ? 'A' :
-            currentClickMode === 'destination' ? 'B' :
-              '+'
-          }</span>
-        </div>`,
+        html: `
+          <div class="flex items-center justify-center w-8 h-8 ${badgeColor} rounded-full border-2 border-white shadow-xl animate-bounce">
+            <span class="text-white text-xs font-bold">${badgeText}</span>
+          </div>
+        `,
         className: "custom-click-marker",
         iconSize: [32, 32],
         iconAnchor: [16, 16],
@@ -485,109 +500,135 @@ export default function RouteMap() {
 
       clickMarkerRef.current = L.marker([lat, lng], { icon: clickIcon }).addTo(map);
 
-      // Update the appropriate state
-      if (currentClickMode === 'origin') {
-        setOrigin({ ...coords, address: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` });
-      } else if (currentClickMode === 'destination') {
-        setDestination({ ...coords, address: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` });
-      } else if (currentClickMode === 'waypoint') {
-        setWaypoints(prev => [...prev, { ...coords, address: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` }]);
+      const label = `Titik (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      if (mode === "origin") {
+        setOrigin({ ...coords, address: label });
+        setOriginText(label);
+      } else if (mode === "destination") {
+        setDestination({ ...coords, address: label });
+        setDestinationText(label);
+      } else if (mode === "waypoint") {
+        setWaypoints((prev) => [...prev, { ...coords, address: label }]);
       }
 
-      // Clear click mode after selection
       setClickMode(null);
       clickModeRef.current = null;
+      setActiveSearchTarget(null);
     });
 
-    // Small delay to ensure container is fully rendered
     setTimeout(() => {
-      if (mapRef.current) {
-        mapRef.current.invalidateSize();
-      }
-    }, 100);
+      if (mapRef.current) mapRef.current.invalidateSize();
+    }, 150);
 
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        cctvLayerGroupRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // Add CCTV markers to map (only those near the route)
-    if (!mapRef.current) return;
-
+  // Update CCTV Markers with Viewport Culling & optimized rendering
+  const renderCCTVMarkers = useCallback(() => {
+    if (!mapRef.current || !cctvLayerGroupRef.current) return;
     const map = mapRef.current;
+    const layer = cctvLayerGroupRef.current;
+    layer.clearLayers();
 
-    // Clear existing CCTV markers
-    cctvMarkersRef.current.forEach((marker) => map.removeLayer(marker));
-    cctvMarkersRef.current = [];
+    const bounds = map.getBounds().pad(0.15);
+    const cctvsSource = showAllCCTVs ? CCTVS : nearbyCCTVs;
 
-    // Helper function to create CCTV icon with dynamic color
-    const createCCTVIcon = (isOnline: boolean) => {
-      const bgColor = isOnline ? 'bg-blue-500' : 'bg-red-500';
-      const hoverColor = isOnline ? 'hover:bg-blue-600' : 'hover:bg-red-600';
+    // Viewport Culling: only draw cameras inside visible map viewport
+    const visibleList = showAllCCTVs
+      ? cctvsSource.filter((c) => bounds.contains([c.lat, c.lng]))
+      : cctvsSource;
 
-      return L.divIcon({
-        html: `<div class="flex items-center justify-center w-10 h-10 ${bgColor} rounded-full border-3 border-white shadow-lg cursor-pointer ${hoverColor} transition-colors">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-          </svg>
-        </div>`,
+    visibleList.forEach((cctv) => {
+      const isOnline = cctvStatus.get(cctv.id) ?? true;
+      // Do not run 500 animate-ping loops simultaneously
+      const shouldAnimate = !showAllCCTVs && isOnline;
+
+      const icon = L.divIcon({
+        html: `
+          <div class="group relative cursor-pointer">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center shadow-md transition-transform duration-150 group-hover:scale-125 ${
+              isOnline
+                ? "bg-slate-900 border-2 border-emerald-400 text-emerald-400"
+                : "bg-slate-900 border-2 border-rose-500 text-rose-500"
+            }">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+              </svg>
+            </div>
+            <span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+              ${shouldAnimate ? '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>' : ""}
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 ${isOnline ? "bg-emerald-500" : "bg-rose-500"}"></span>
+            </span>
+          </div>
+        `,
         className: "custom-cctv-marker",
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16],
       });
-    };
 
-    // Add CCTV markers (all or nearby depending on toggle)
-    const cctvsToShow = showAllCCTVs ? CCTVS : nearbyCCTVs;
-    cctvsToShow.forEach((cctv) => {
-      const isOnline = cctvStatus.get(cctv.id) ?? true; // Default to online (blue) if not checked yet
-      const cctvIcon = createCCTVIcon(isOnline);
-
-      const marker = L.marker([cctv.lat, cctv.lng], {
-        icon: cctvIcon,
-      }).addTo(map);
-
+      const marker = L.marker([cctv.lat, cctv.lng], { icon });
       marker.bindPopup(`
-        <div class="text-center">
-          <b>${cctv.name}</b><br>
-          <span class="text-xs ${isOnline ? 'text-green-600' : 'text-red-600'}">
-            ${isOnline ? '● Online' : '● Offline'}
-          </span><br>
+        <div class="p-1 min-w-[200px]">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-rose-500"}"></span>
+            <span class="text-[10px] font-bold tracking-wider uppercase ${isOnline ? "text-emerald-600" : "text-rose-600"}">
+              ${isOnline ? "Online Live" : "Offline"}
+            </span>
+          </div>
+          <p class="font-semibold text-xs text-slate-900 leading-snug mb-2.5">${cctv.name}</p>
           <button
             onclick="window.openCCTVModal('${cctv.id}')"
-            class="mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            class="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5"
           >
-            Watch Stream
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Tonton Live
           </button>
         </div>
       `);
 
-      // Make marker clickable to open CCTV modal
-      marker.on("click", () => {
-        handleOpenCCTVModal(cctv);
-      });
-
-      cctvMarkersRef.current.push(marker);
+      marker.on("click", () => handleOpenCCTVModal(cctv));
+      layer.addLayer(marker);
     });
 
-    // Make openCCTVModal available globally for the popup button
     (window as any).openCCTVModal = (id: string) => {
-      const cctv = CCTVS.find((c) => c.id === id);
-      if (cctv) {
-        handleOpenCCTVModal(cctv);
+      const target = CCTVS.find((c) => c.id === id);
+      if (target) handleOpenCCTVModal(target);
+    };
+  }, [showAllCCTVs, CCTVS, nearbyCCTVs, cctvStatus, handleOpenCCTVModal]);
+
+  // Synchronize CCTV markers and update on viewport pan/zoom
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    renderCCTVMarkers();
+
+    const onMapMove = () => {
+      if (showAllCCTVs) {
+        renderCCTVMarkers();
       }
     };
-  }, [nearbyCCTVs, cctvStatus, CCTVS, showAllCCTVs]);
 
+    map.on("moveend", onMapMove);
+    return () => {
+      map.off("moveend", onMapMove);
+    };
+  }, [renderCCTVMarkers, showAllCCTVs]);
+
+  // Fetch Route Data
   useEffect(() => {
-    // Fetch route data from API
     const fetchRoute = async () => {
-      // Only fetch if both origin and destination are set
       if (!origin || !destination) {
         setRouteData(null);
         setLoading(false);
@@ -598,7 +639,6 @@ export default function RouteMap() {
         setLoading(true);
         setError(null);
 
-        // Use Mapbox endpoint when traffic is enabled, otherwise use OSRM
         const endpoint = useMapboxTraffic ? "/api/route/mapbox" : "/api/route";
         const response = await fetch(endpoint, {
           method: "POST",
@@ -606,19 +646,19 @@ export default function RouteMap() {
           body: JSON.stringify({
             origin: { lat: origin.lat, lng: origin.lng },
             destination: { lat: destination.lat, lng: destination.lng },
-            waypoints: waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng }))
+            waypoints: waypoints.map((wp) => ({ lat: wp.lat, lng: wp.lng })),
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to fetch route");
+          throw new Error(errorData.error || "Gagal menghitung rute");
         }
 
         const data = await response.json();
         setRouteData(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : "Terjadi kesalahan saat memuat rute");
       } finally {
         setLoading(false);
       }
@@ -627,712 +667,900 @@ export default function RouteMap() {
     fetchRoute();
   }, [useMapboxTraffic, origin, destination, waypoints]);
 
+  // Draw Route & Pins
   useEffect(() => {
-    // Draw route on map when data is available
     if (!routeData || !mapRef.current) return;
-
     const map = mapRef.current;
 
-    // Clear click marker if exists
     if (clickMarkerRef.current) {
       map.removeLayer(clickMarkerRef.current);
       clickMarkerRef.current = null;
     }
 
-    // Clear existing route and markers
-    if (routeLayerRef.current) {
-      map.removeLayer(routeLayerRef.current);
-    }
-    markersRef.current.forEach((marker) => map.removeLayer(marker));
+    if (routeLayerRef.current) map.removeLayer(routeLayerRef.current);
+    markersRef.current.forEach((m) => map.removeLayer(m));
     markersRef.current = [];
-    waypointMarkersRef.current.forEach((marker) => map.removeLayer(marker));
+    waypointMarkersRef.current.forEach((m) => map.removeLayer(m));
     waypointMarkersRef.current = [];
-
-    // Clear existing traffic segments
-    trafficSegmentsRef.current.forEach((polyline) => map.removeLayer(polyline));
+    trafficSegmentsRef.current.forEach((p) => map.removeLayer(p));
     trafficSegmentsRef.current = [];
 
-    // ALWAYS draw the blue route as base layer
-    const latLngs = routeData.coordinates.map((coord) => [coord.lat, coord.lng] as [number, number]);
+    // Base glowing route
+    const latLngs = routeData.coordinates.map((c) => [c.lat, c.lng] as [number, number]);
     const blueRoute = L.polyline(latLngs, {
-      color: "#3b82f6", // Blue route
+      color: "#4f46e5", // Indigo accent
       weight: 6,
-      opacity: 0.8,
+      opacity: 0.9,
+      lineCap: "round",
+      lineJoin: "round",
     }).addTo(map);
 
     routeLayerRef.current = blueRoute;
 
-    // Draw traffic segments on top if available
+    // Traffic segments
     if (routeData.trafficSegments && routeData.trafficSegments.length > 0) {
-      routeData.trafficSegments.forEach((segment) => {
-        const segmentLatLngs = segment.coordinates.map((coord) => [coord.lat, coord.lng] as [number, number]);
-        const polyline = L.polyline(segmentLatLngs, {
-          color: segment.color,
+      routeData.trafficSegments.forEach((seg) => {
+        const segLatLngs = seg.coordinates.map((c) => [c.lat, c.lng] as [number, number]);
+        const polyline = L.polyline(segLatLngs, {
+          color: seg.color,
           weight: 6,
           opacity: 1.0,
+          lineCap: "round",
         }).addTo(map);
         trafficSegmentsRef.current.push(polyline);
       });
     }
 
-    // Fit map to route bounds
-    map.fitBounds(blueRoute.getBounds(), { padding: [50, 50] });
+    map.fitBounds(blueRoute.getBounds(), { padding: [60, 60] });
 
-    // Add origin marker
+    // Origin Pin
     const originIcon = L.divIcon({
-      html: `<div class="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full border-2 border-white shadow-lg"><span class="text-white text-xs font-bold">A</span></div>`,
+      html: `
+        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-600 border-2 border-white shadow-xl text-white font-bold text-xs">
+          A
+        </div>
+      `,
       className: "custom-marker",
       iconSize: [32, 32],
       iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
     });
     const originMarker = L.marker([routeData.summary.origin.lat, routeData.summary.origin.lng], {
       icon: originIcon,
     }).addTo(map);
-    originMarker.bindPopup(`<b>Start:</b><br>${routeData.summary.startAddress}`);
+    originMarker.bindPopup(`<div class="p-1"><b class="text-xs text-emerald-700">Titik Awal (A)</b><p class="text-xs text-slate-700 mt-1">${routeData.summary.startAddress}</p></div>`);
     markersRef.current.push(originMarker);
 
-    // Add waypoint markers
+    // Waypoints
     waypoints.forEach((wp, index) => {
       const waypointIcon = L.divIcon({
-        html: `<div class="flex items-center justify-center w-8 h-8 bg-yellow-500 rounded-full border-2 border-white shadow-lg"><span class="text-white text-xs font-bold">${index + 1}</span></div>`,
+        html: `
+          <div class="flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 border-2 border-white shadow-lg text-white font-bold text-xs">
+            ${index + 1}
+          </div>
+        `,
         className: "custom-marker",
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14],
       });
-      const waypointMarker = L.marker([wp.lat, wp.lng], {
-        icon: waypointIcon,
-      }).addTo(map);
-      waypointMarker.bindPopup(`<b>Waypoint ${index + 1}:</b><br>${wp.address}`);
-      waypointMarkersRef.current.push(waypointMarker);
+      const wpMarker = L.marker([wp.lat, wp.lng], { icon: waypointIcon }).addTo(map);
+      wpMarker.bindPopup(`<div class="p-1"><b class="text-xs text-amber-700">Singgah ${index + 1}</b><p class="text-xs text-slate-700 mt-1">${wp.address}</p></div>`);
+      waypointMarkersRef.current.push(wpMarker);
     });
 
-    // Add destination marker
+    // Destination Pin
     const destIcon = L.divIcon({
-      html: `<div class="flex items-center justify-center w-8 h-8 bg-red-500 rounded-full border-2 border-white shadow-lg"><span class="text-white text-xs font-bold">B</span></div>`,
+      html: `
+        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-rose-600 border-2 border-white shadow-xl text-white font-bold text-xs">
+          B
+        </div>
+      `,
       className: "custom-marker",
       iconSize: [32, 32],
       iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
     });
     const destMarker = L.marker([routeData.summary.destination.lat, routeData.summary.destination.lng], {
       icon: destIcon,
     }).addTo(map);
-    destMarker.bindPopup(`<b>Destination:</b><br>${routeData.summary.endAddress}`);
+    destMarker.bindPopup(`<div class="p-1"><b class="text-xs text-rose-700">Tujuan (B)</b><p class="text-xs text-slate-700 mt-1">${routeData.summary.endAddress}</p></div>`);
     markersRef.current.push(destMarker);
 
-    // Calculate and set nearby CCTVs (within 50 meters of the route)
-    const nearby = getCCTVsNearRoute(CCTVS, routeData.coordinates, 50);
+    // Calculate nearby CCTVs (150m buffer)
+    const nearby = getCCTVsNearRoute(CCTVS, routeData.coordinates, 150);
     setNearbyCCTVs(nearby);
-  }, [routeData]);
+  }, [routeData, CCTVS, waypoints]);
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Route</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500 mb-6">
-            Using OSRM (Open Source Routing Machine) for routing. No API key required.
-          </p>
-          <button
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              setRouteData(null);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Fit bounds helper
+  const handleFitRoute = () => {
+    if (!routeData || !mapRef.current) return;
+    const bounds = L.latLngBounds(routeData.coordinates.map((c) => [c.lat, c.lng] as [number, number]));
+    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+  };
 
   return (
-    <div className="flex h-screen relative">
-      {/* Map container */}
-      <div className="flex-1 relative h-full">
-        <div ref={mapContainerRef} className="w-full h-full relative z-0" data-click-mode={clickMode || ''} />
+    <div className="relative w-full h-screen overflow-hidden bg-slate-950 font-sans">
+      {/* Map Canvas */}
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full relative z-0"
+        data-click-mode={clickMode || ""}
+      />
 
-        {/* Backdrop overlay for mobile when sidebar is open */}
-        {showSidebar && (
-          <div
-            className="absolute inset-0 bg-black/50 z-20 md:hidden"
-            onClick={() => {
-              setShowSidebar(false);
-              setTimeout(() => {
-                if (mapRef.current) {
-                  mapRef.current.invalidateSize();
-                }
-              }, 300);
-            }}
-          />
-        )}
-
-        {/* Map controls overlay */}
-        {/* Hamburger button - show on mobile only */}
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end md:hidden">
-          <button
-            onClick={() => {
-              setShowSidebar(!showSidebar);
-              // Invalidate map size after sidebar transition
-              setTimeout(() => {
-                if (mapRef.current) {
-                  mapRef.current.invalidateSize();
-                }
-              }, 300);
-            }}
-            className="bg-white rounded-lg shadow-lg p-3 hover:bg-gray-50 transition-colors"
-            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {showSidebar ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
+      {/* Floating Header / Brand Pill on Mobile / Desktop */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+        <button
+          onClick={() => setShowSidebar(!showSidebar)}
+          className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 shadow-lg text-slate-800 dark:text-zinc-100 font-semibold text-sm hover:bg-slate-50 transition-all active:scale-95"
+          title={showSidebar ? "Sembunyikan Panel" : "Buka Panel Rute"}
+        >
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-          </button>
-
-          {/* Show All CCTVs toggle - mobile only */}
-          <button
-            onClick={() => setShowAllCCTVs(!showAllCCTVs)}
-            className={`bg-white rounded-lg shadow-lg px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 ${showAllCCTVs ? 'ring-2 ring-blue-500' : ''}`}
-            title={showAllCCTVs ? "Hide all CCTVs" : "Show all CCTVs"}
+          </div>
+          <span>MyRoutes</span>
+          <span className="hidden sm:inline-flex text-[11px] font-normal text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-700 pl-2">
+            Bandung Live
+          </span>
+          <svg
+            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showSidebar ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 20 20">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <span className="text-xs text-gray-700">
-              {showAllCCTVs ? 'All CCTVs' : 'Nearby CCTVs'}
-            </span>
-          </button>
-        </div>
-
-        {/* Map style, traffic, and legend - show on desktop, hide on mobile */}
-        <div className="hidden md:flex absolute bottom-4 left-4 z-30 flex-col gap-2">
-          {/* Map style selector */}
-          <div className="bg-white rounded-lg shadow-lg p-2">
-            <label className="text-xs font-medium text-gray-600 block mb-2">Map Style</label>
-            <select
-              value={mapStyle}
-              onChange={(e) => setMapStyle(e.target.value as keyof typeof MAP_STYLES)}
-              className="text-sm border rounded px-2 py-1 w-full"
-            >
-              {Object.entries(MAP_STYLES).map(([key, style]) => (
-                <option key={key} value={key}>
-                  {style.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Traffic toggle */}
-          <div className="bg-white rounded-lg shadow-lg p-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useMapboxTraffic}
-                onChange={(e) => setUseMapboxTraffic(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-xs font-medium text-gray-600">Traffic on Route</span>
-            </label>
-            <p className="text-[10px] text-gray-400 mt-1">
-              Requires Mapbox API key
-            </p>
-          </div>
-
-          {/* Show All CCTVs toggle */}
-          <div className="bg-white rounded-lg shadow-lg p-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showAllCCTVs}
-                onChange={(e) => setShowAllCCTVs(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-xs font-medium text-gray-600">Show All CCTVs</span>
-            </label>
-            <p className="text-[10px] text-gray-400 mt-1">
-              {showAllCCTVs ? `Showing all ${CCTVS.length} CCTVs` : `Showing nearby CCTVs only`}
-            </p>
-          </div>
-
-          {/* Legend */}
-          <div className="bg-white rounded-lg shadow-lg p-2">
-            <div className="text-xs font-medium text-gray-600 mb-1">Legend</div>
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span>Start</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span>End</span>
-            </div>
-            {useMapboxTraffic ? (
-              <>
-                <div className="text-xs font-medium text-gray-400 mt-2 mb-1">Traffic</div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                  <div className="w-6 h-1 bg-green-500"></div>
-                  <span>Low</span>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                  <div className="w-6 h-1 bg-yellow-500"></div>
-                  <span>Moderate</span>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                  <div className="w-6 h-1 bg-orange-500"></div>
-                  <span>Heavy</span>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                  <div className="w-6 h-1 bg-red-500"></div>
-                  <span>Severe</span>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                <div className="w-6 h-1 bg-blue-500"></div>
-                <span>Route</span>
-              </div>
-            )}
-            <div className="text-xs font-medium text-gray-400 mt-2 mb-1">CCTV Status</div>
-            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-              <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
-                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                </svg>
-              </div>
-              <span>Online</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-              <div className="w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                </svg>
-              </div>
-              <span>Offline</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Map Attribution - custom rendered outside map container */}
-        <div className="hidden md:block absolute bottom-4 left-[220px] z-30">
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow px-2 py-1 text-[10px] text-gray-600">
-            <span dangerouslySetInnerHTML={{ __html: MAP_STYLES[mapStyle].attribution }} />
-          </div>
-        </div>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
       </div>
 
-      {/* Sidebar */}
-      {showSidebar && (
-        <div className="absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl overflow-y-auto z-30 transition-transform duration-300">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <span>🏍️</span> MyRoutes
-              </h1>
-              <p className="text-blue-100 text-sm mt-1">Route Planning & CCTV Monitoring - Bandung Area</p>
-            </div>
+      {/* Floating Map Action Controls (Right side dock) */}
+      <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+        {/* CCTV Quick Filter Pill */}
+        <button
+          onClick={() => setShowAllCCTVs(!showAllCCTVs)}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-xl border text-xs font-semibold shadow-lg transition-all active:scale-95 ${
+            showAllCCTVs
+              ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/25"
+              : "bg-white/95 dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50"
+          }`}
+          title="Filter Kamera CCTV"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span>{showAllCCTVs ? `Semua CCTV (${CCTVS.length})` : `CCTV Rute (${nearbyCCTVs.length})`}</span>
+        </button>
+
+        {/* Floating Quick Dock */}
+        <div className="flex flex-col rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 shadow-lg p-1 gap-1">
+          {/* Layer Style Popover Toggle */}
+          <div className="relative">
             <button
-              onClick={() => {
-                setShowSidebar(false);
-                setTimeout(() => {
-                  if (mapRef.current) {
-                    mapRef.current.invalidateSize();
-                  }
-                }, 300);
-              }}
-              className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors"
-              title="Close sidebar"
+              onClick={() => setShowLayersMenu(!showLayersMenu)}
+              className="p-2.5 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              title="Ganti Lapisan Peta"
             >
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
               </svg>
             </button>
+
+            {showLayersMenu && (
+              <div className="absolute right-full top-0 mr-2 w-48 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 z-40 text-xs">
+                <p className="px-2 py-1 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  Tipe Tampilan Peta
+                </p>
+                {Object.entries(MAP_STYLES).map(([key, style]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setMapStyle(key as keyof typeof MAP_STYLES);
+                      setShowLayersMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg font-medium transition-colors flex items-center justify-between ${
+                      mapStyle === key
+                        ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"
+                        : "text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span>{style.name}</span>
+                    {mapStyle === key && (
+                      <svg className="w-3.5 h-3.5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Plan Your Route - Always visible */}
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Plan Your Route</h2>
+          {/* Traffic Toggle */}
+          <button
+            onClick={() => setUseMapboxTraffic(!useMapboxTraffic)}
+            className={`p-2.5 rounded-lg transition-colors ${
+              useMapboxTraffic
+                ? "bg-amber-500 text-white"
+                : "text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
+            }`}
+            title={useMapboxTraffic ? "Traffic Aktif (Mapbox)" : "Aktifkan Traffic"}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </button>
 
-            <div className="space-y-4">
-              {/* Origin Display or Prompt */}
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${origin ? 'bg-green-100' : 'bg-gray-100'}`}>
-                  <span className={`font-bold ${origin ? 'text-green-600' : 'text-gray-400'}`}>A</span>
-                </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-xs text-gray-500">From</p>
-                  {origin ? (
-                    <>
-                      <p className="text-sm font-medium text-gray-800 truncate" title={origin.address}>{origin.address}</p>
-                      <p className="text-xs text-gray-400">{origin.lat.toFixed(6)}, {origin.lng.toFixed(6)}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Click &quot;Set Origin&quot; to select starting point</p>
-                  )}
-                </div>
+          {/* Current Location */}
+          <button
+            onClick={() => handleGetCurrentLocation("origin")}
+            disabled={gettingLocation}
+            className="p-2.5 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            title="Gunakan Lokasi Saat Ini Sebagai Titik Awal"
+          >
+            {gettingLocation ? (
+              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" strokeWidth={2} />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v3m0 14v3M2 12h3m14 0h3" />
+              </svg>
+            )}
+          </button>
+
+          {/* Fit Route */}
+          {routeData && (
+            <button
+              onClick={handleFitRoute}
+              className="p-2.5 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              title="Pusatkan Seluruh Rute"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+          )}
+
+          {/* Zoom In */}
+          <button
+            onClick={() => mapRef.current?.zoomIn()}
+            className="p-2.5 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            title="Perbesar Peta (+)"
+            aria-label="Zoom in"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+
+          {/* Zoom Out */}
+          <button
+            onClick={() => mapRef.current?.zoomOut()}
+            className="p-2.5 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            title="Perkecil Peta (-)"
+            aria-label="Zoom out"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+
+          {/* Legend Toggle */}
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            className={`p-2.5 rounded-lg transition-colors ${
+              showLegend
+                ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600"
+                : "text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
+            }`}
+            title="Keterangan Peta (Legend)"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Legend Drawer Pill */}
+        {showLegend && (
+          <div className="w-56 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 rounded-xl shadow-xl p-3 text-xs space-y-2">
+            <p className="font-semibold text-slate-800 dark:text-zinc-100 text-[11px] uppercase tracking-wider">
+              Keterangan Peta
+            </p>
+            <div className="space-y-1.5 text-slate-600 dark:text-zinc-300">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span>Titik Awal (A)</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-rose-500" />
+                <span>Titik Tujuan (B)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-amber-500" />
+                <span>Titik Singgah (Waypoint)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-indigo-600" />
+                <span>Jalur Rekomendasi</span>
+              </div>
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-zinc-800">
+                <div className="w-3 h-3 rounded bg-slate-900 border border-emerald-400 flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                </div>
+                <span>CCTV Online Live</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-slate-900 border border-rose-500 flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                </div>
+                <span>CCTV Offline</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
-              {/* Swap Button */}
-              <div className="flex justify-center">
-                <button
-                  onClick={() => {
-                    if (origin && destination) {
-                      const temp = origin;
-                      setOrigin(destination);
-                      setDestination(temp);
-                    }
-                  }}
-                  disabled={!origin || !destination}
-                  className={`p-2 rounded-full border-2 transition-all ${origin && destination
-                    ? 'bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 hover:border-blue-400 cursor-pointer'
-                    : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                    }`}
-                  title="Swap origin and destination"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+      {/* Floating Main Route Drawer (Responsive: Left floating card on desktop, bottom sheet on mobile) */}
+      {showSidebar && (
+        <div className="absolute inset-x-3 bottom-3 top-16 md:top-4 md:left-4 md:bottom-4 md:w-[410px] md:max-w-[calc(100vw-2rem)] z-30 pointer-events-none">
+          <div className="pointer-events-auto w-full h-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800/90 shadow-2xl rounded-2xl flex flex-col overflow-hidden transition-all duration-300">
+            {/* Header with Title & Close button */}
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-zinc-900/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                </button>
-              </div>
-
-              {/* Destination Display or Prompt */}
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${destination ? 'bg-red-100' : 'bg-gray-100'}`}>
-                  <span className={`font-bold ${destination ? 'text-red-600' : 'text-gray-400'}`}>B</span>
                 </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-xs text-gray-500">To</p>
-                  {destination ? (
-                    <>
-                      <p className="text-sm font-medium text-gray-800 truncate" title={destination.address}>{destination.address}</p>
-                      <p className="text-xs text-gray-400">{destination.lat.toFixed(6)}, {destination.lng.toFixed(6)}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Click &quot;Set Destination&quot; to select ending point</p>
-                  )}
+                <div>
+                  <h1 className="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-tight">
+                    Rute & Pantauan CCTV
+                  </h1>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Kota & Kabupaten Bandung
+                  </p>
                 </div>
               </div>
 
-              {/* Click on Map / Search Section */}
-              <div className={`rounded-lg p-3 transition-colors ${clickMode ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-gray-600">📍 Set location:</p>
-                  {clickMode && (
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Tutup Panel"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/80">
+              {/* Unified Route Inputs Card */}
+              <div className="p-4 space-y-3">
+                {/* Click-on-map status banner */}
+                {clickMode && (
+                  <div
+                    className={`p-2.5 rounded-xl border flex items-center justify-between text-xs animate-fadeIn ${
+                      clickMode === "origin"
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                        : clickMode === "destination"
+                        ? "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400"
+                        : "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-current animate-ping" />
+                      <span className="font-semibold">
+                        {clickMode === "origin"
+                          ? "Klik lokasi di peta untuk Titik Awal (A)"
+                          : clickMode === "destination"
+                          ? "Klik lokasi di peta untuk Titik Tujuan (B)"
+                          : "Klik lokasi di peta untuk Titik Singgah"}
+                      </span>
+                    </div>
                     <button
                       onClick={() => {
                         setClickMode(null);
                         clickModeRef.current = null;
-                        setSearchQuery("");
-                        setSearchResults([]);
-                        setShowSearchResults(false);
-                        if (clickMarkerRef.current && mapRef.current) {
-                          mapRef.current.removeLayer(clickMarkerRef.current);
-                          clickMarkerRef.current = null;
-                        }
                       }}
-                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                      className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors"
                     >
-                      Cancel
+                      Batal
                     </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-2 mb-2">
-                  <button
-                    onClick={() => setClickMode('origin')}
-                    className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors ${clickMode === 'origin'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-white border-2 border-green-300 text-green-700 hover:bg-green-50'
-                      }`}
-                  >
-                    Origin (A)
-                  </button>
-                  <button
-                    onClick={() => setClickMode('destination')}
-                    className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors ${clickMode === 'destination'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-white border-2 border-red-300 text-red-700 hover:bg-red-50'
-                      }`}
-                  >
-                    Destination (B)
-                  </button>
-                  <button
-                    onClick={() => setClickMode('waypoint')}
-                    className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors ${clickMode === 'waypoint'
-                      ? 'bg-yellow-600 text-white'
-                      : 'bg-white border-2 border-yellow-300 text-yellow-700 hover:bg-yellow-50'
-                      }`}
-                  >
-                    + Waypoint
-                  </button>
-                </div>
+                  </div>
+                )}
 
-                {/* Search input - shown when origin/destination mode is selected (not for waypoints) */}
-                {clickMode && clickMode !== 'waypoint' && (
-                  <div className="relative mt-2">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          searchLocations(e.target.value);
-                        }}
-                        placeholder="Search location..."
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        autoFocus
-                      />
-                      {searchLoading && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                {/* Connected Inputs Box (A and B) */}
+                <div className="relative bg-slate-50/70 dark:bg-zinc-800/40 rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3 space-y-2.5">
+                  {/* Origin Input (A) */}
+                  <div className="relative">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        A
+                      </div>
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          value={originText}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setOriginText(val);
+                            setActiveSearchTarget("origin");
+                            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                            if (!val.trim()) {
+                              setSearchResults([]);
+                              setShowSearchResults(false);
+                              return;
+                            }
+                            searchTimeoutRef.current = setTimeout(() => {
+                              searchLocations(val);
+                            }, 300);
+                          }}
+                          onFocus={() => {
+                            if (originText.trim()) {
+                              setActiveSearchTarget("origin");
+                              searchLocations(originText);
+                            }
+                          }}
+                          placeholder="Cari lokasi awal keberangkatan..."
+                          className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                        />
+                        {activeSearchTarget === "origin" && searchLoading && (
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                            <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Clear Button */}
+                      {origin && (
+                        <button
+                          onClick={() => {
+                            setOrigin(null);
+                            setOriginText("");
+                            setRouteData(null);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                          title="Hapus Titik Awal"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                        </div>
+                        </button>
                       )}
+
+                      {/* Pick on map */}
+                      <button
+                        onClick={() => {
+                          const nextMode = clickMode === "origin" ? null : "origin";
+                          setClickMode(nextMode);
+                          setActiveSearchTarget(null);
+                        }}
+                        className={`p-2 rounded-xl transition-all ${
+                          clickMode === "origin"
+                            ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                            : "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:text-emerald-500 hover:border-emerald-500/50"
+                        }`}
+                        title="Pilih Titik Awal di Peta"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+
+                      {/* GPS button */}
+                      <button
+                        onClick={() => handleGetCurrentLocation("origin")}
+                        disabled={gettingLocation}
+                        className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:text-indigo-500 hover:border-indigo-500/50 transition-colors disabled:opacity-50"
+                        title="Gunakan Lokasi Saat Ini (GPS)"
+                      >
+                        {gettingLocation ? (
+                          <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="3" strokeWidth={2} />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v3m0 14v3M2 12h3m14 0h3" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
 
-                    {/* Search results dropdown */}
-                    {showSearchResults && searchResults.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {searchResults.map((result, index) => (
+                    {/* Autocomplete Dropdown under Origin */}
+                    {activeSearchTarget === "origin" && showSearchResults && searchResults.length > 0 && (
+                      <div className="absolute left-9 right-16 top-full mt-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-50 divide-y divide-slate-100 dark:divide-zinc-800">
+                        {searchResults.map((res, i) => (
                           <button
-                            key={index}
-                            onClick={() => handleSelectLocation(result)}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                            key={i}
+                            onClick={() => handleSelectLocation(res, "origin")}
+                            className="w-full text-left px-3 py-2 text-xs text-slate-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 transition-colors flex items-center gap-2"
                           >
-                            <div className="font-medium text-gray-800 truncate">{result.name}</div>
+                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            </svg>
+                            <span className="truncate font-medium">{res.name}</span>
                           </button>
                         ))}
                       </div>
                     )}
+                  </div>
 
-                    {/* No results message */}
-                    {showSearchResults && searchQuery && searchResults.length === 0 && !searchLoading && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500">
-                        No results found. Try clicking on the map instead.
+                  {/* Center Swap & Connector line */}
+                  <div className="flex items-center justify-between px-2 -my-1">
+                    <div className="ml-2.5 w-0.5 h-4 bg-slate-200 dark:bg-zinc-700" />
+                    <button
+                      onClick={() => {
+                        if (origin && destination) {
+                          const temp = origin;
+                          setOrigin(destination);
+                          setDestination(temp);
+                        }
+                      }}
+                      disabled={!origin || !destination}
+                      className="p-1 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-sm text-slate-500 hover:text-indigo-500 hover:rotate-180 disabled:opacity-30 disabled:hover:rotate-0 transition-all duration-300"
+                      title="Tukar Titik A dan B"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
+                    <div className="w-8" />
+                  </div>
+
+                  {/* Destination Input (B) */}
+                  <div className="relative">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center shrink-0 border border-rose-500/30">
+                        B
+                      </div>
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          value={destinationText}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDestinationText(val);
+                            setActiveSearchTarget("destination");
+                            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                            if (!val.trim()) {
+                              setSearchResults([]);
+                              setShowSearchResults(false);
+                              return;
+                            }
+                            searchTimeoutRef.current = setTimeout(() => {
+                              searchLocations(val);
+                            }, 300);
+                          }}
+                          onFocus={() => {
+                            if (destinationText.trim()) {
+                              setActiveSearchTarget("destination");
+                              searchLocations(destinationText);
+                            }
+                          }}
+                          placeholder="Cari lokasi tujuan..."
+                          className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all"
+                        />
+                        {activeSearchTarget === "destination" && searchLoading && (
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                            <div className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Clear Button */}
+                      {destination && (
+                        <button
+                          onClick={() => {
+                            setDestination(null);
+                            setDestinationText("");
+                            setRouteData(null);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                          title="Hapus Titik Tujuan"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+
+                      {/* Pick on map */}
+                      <button
+                        onClick={() => {
+                          const nextMode = clickMode === "destination" ? null : "destination";
+                          setClickMode(nextMode);
+                          setActiveSearchTarget(null);
+                        }}
+                        className={`p-2 rounded-xl transition-all ${
+                          clickMode === "destination"
+                            ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                            : "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:text-rose-500 hover:border-rose-500/50"
+                        }`}
+                        title="Pilih Titik Tujuan di Peta"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Autocomplete Dropdown under Destination */}
+                    {activeSearchTarget === "destination" && showSearchResults && searchResults.length > 0 && (
+                      <div className="absolute left-9 right-8 top-full mt-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-50 divide-y divide-slate-100 dark:divide-zinc-800">
+                        {searchResults.map((res, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleSelectLocation(res, "destination")}
+                            className="w-full text-left px-3 py-2 text-xs text-slate-800 dark:text-zinc-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            </svg>
+                            <span className="truncate font-medium">{res.name}</span>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
-                )}
+                </div>
 
-                {(clickMode && clickMode !== 'waypoint') && !searchQuery && (
-                  <p className="text-xs text-blue-600 mt-2 text-center">
-                    Search above or click on the map to set {clickMode === 'origin' ? 'origin' : clickMode === 'destination' ? 'destination' : 'waypoint'}...
-                  </p>
-                )}
-              </div>
-
-              {/* Calculate Route Button - Only show when both set */}
-              {origin && destination && (
-                <button
-                  onClick={() => {
-                    setRouteData(null);
-                    setLoading(true);
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  Calculate Route
-                </button>
-              )}
-
-              {/* Waypoint Management - Only show when route exists */}
-              {origin && destination && (
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-700">📍 Waypoints</h3>
-                    {/* <button
+                {/* Waypoint Action & Bandung Landmarks */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <button
                       onClick={() => {
-                        setClickMode('waypoint');
-                        setSearchQuery("");
-                        setSearchResults([]);
-                        setShowSearchResults(false);
+                        const next = clickMode === "waypoint" ? null : "waypoint";
+                        setClickMode(next);
                       }}
-                      className={`text-xs px-3 py-1 rounded-full transition-colors ${clickMode === 'waypoint'
-                        ? 'bg-yellow-500 text-white'
-                        : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                        }`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+                        clickMode === "waypoint"
+                          ? "bg-amber-500 text-white shadow-sm"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20"
+                      }`}
                     >
-                      {clickMode === 'waypoint' ? 'Click map to add...' : '+ Add Waypoint'}
-                    </button> */}
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>{clickMode === "waypoint" ? "Klik Peta untuk Singgah" : "+ Titik Singgah"}</span>
+                    </button>
+
+                    {waypoints.length > 0 && (
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {waypoints.length} singgah
+                      </span>
+                    )}
                   </div>
 
-                  {waypoints.length > 0 ? (
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {waypoints.map((wp, index) => (
+                  {/* Waypoint list */}
+                  {waypoints.length > 0 && (
+                    <div className="space-y-1.5">
+                      {waypoints.map((wp, idx) => (
                         <div
-                          key={index}
-                          className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200"
+                          key={idx}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-slate-800 dark:text-zinc-200"
                         >
-                          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-white text-xs font-bold">{index + 1}</span>
-                          </div>
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            <p className="text-xs text-gray-600 truncate">{wp.address}</p>
-                          </div>
+                          <span className="w-5 h-5 rounded-full bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <span className="flex-1 truncate" title={wp.address}>
+                            {wp.address}
+                          </span>
                           <button
-                            onClick={() => {
-                              setWaypoints(prev => prev.filter((_, i) => i !== index));
-                              setRouteData(null);
-                              setLoading(true);
-                            }}
-                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                            title="Remove waypoint"
+                            onClick={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
+                            className="text-slate-400 hover:text-rose-600 p-0.5"
+                            title="Hapus titik singgah"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 italic">No waypoints. Click + Add Waypoint to add intermediate stops.</p>
                   )}
+
+                  {/* Quick Landmarks in Bandung */}
+                  <div className="pt-1">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+                      Pilihan Cepat
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { name: "Alun-Alun", lat: -6.9218, lng: 107.6074 },
+                        { name: "Gedung Sate", lat: -6.9025, lng: 107.6186 },
+                        { name: "Stasiun Bandung", lat: -6.9126, lng: 107.6024 },
+                        { name: "Simpang Dago", lat: -6.8856, lng: 107.6136 },
+                        { name: "Tol Pasteur", lat: -6.8885, lng: 107.5756 },
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            if (!origin) {
+                              setOrigin({ lat: item.lat, lng: item.lng, address: item.name });
+                              setOriginText(item.name);
+                            } else {
+                              setDestination({ lat: item.lat, lng: item.lng, address: item.name });
+                              setDestinationText(item.name);
+                            }
+                            if (mapRef.current) {
+                              mapRef.current.setView([item.lat, item.lng], 14);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-zinc-300 hover:text-indigo-600 transition-colors border border-slate-200/80 dark:border-zinc-700"
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status / Loading / Route Overview */}
+              {loading && (
+                <div className="p-6 text-center">
+                  <div className="w-8 h-8 mx-auto mb-2 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Menghitung rute terbaik & mencari CCTV...
+                  </p>
                 </div>
               )}
-            </div>
-          </div>
 
-          {loading ? (
-            <div className="p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-              </div>
-              <p className="text-gray-500 text-sm mt-4">Fetching route data...</p>
-            </div>
-          ) : routeData ? (
-            <>
-              {/* Route Summary */}
-              <div className="p-6 border-b">
-                {/* <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-600 font-bold">A</span>
-                  </div>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="text-sm text-gray-500 truncate">From</p>
-                    <p className="text-sm font-medium text-gray-800 truncate" title={routeData.summary.startAddress}>
-                      {routeData.summary.startAddress}
-                    </p>
+              {error && (
+                <div className="p-4 mx-4 my-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300">
+                  <p className="font-semibold mb-1">Gagal Menghitung Rute</p>
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {/* Route Summary Stats */}
+              {routeData && (
+                <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700/80 shadow-sm">
+                      <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 text-xs font-semibold mb-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        <span>Jarak Tempuh</span>
+                      </div>
+                      <p className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+                        {routeData.summary.distance.text}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700/80 shadow-sm">
+                      <div className="flex items-center gap-1.5 text-violet-600 dark:text-violet-400 text-xs font-semibold mb-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Estimasi Waktu</span>
+                      </div>
+                      <p className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+                        {routeData.summary.duration.text}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="ml-5 border-l-2 border-dashed border-gray-300 h-6"></div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <span className="text-red-600 font-bold">B</span>
+              {/* CCTV List Along Route */}
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                      CCTV di Jalur Ini ({nearbyCCTVs.length})
+                    </h2>
                   </div>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="text-sm text-gray-500 truncate">To</p>
-                    <p className="text-sm font-medium text-gray-800 truncate" title={routeData.summary.endAddress}>
-                      {routeData.summary.endAddress}
-                    </p>
-                  </div>
-                </div> */}
-
-                <div className="mt-2 grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <div className="text-2xl mb-1">📏</div>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {routeData.summary.distance.text}
-                    </p>
-                    <p className="text-sm text-gray-500">Distance</p>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-4">
-                    <div className="text-2xl mb-1">⏱️</div>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {routeData.summary.duration.text}
-                    </p>
-                    <p className="text-sm text-gray-500">Duration</p>
-                  </div>
+                  {nearbyCCTVs.length > 0 && (
+                    <span className="text-[10px] text-slate-400">Jarak ~150m dari rute</span>
+                  )}
                 </div>
-              </div>
 
-              {/* CCTV Section */}
-              {nearbyCCTVs.length > 0 && (
-                <div className="p-6 border-b">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="text-red-500">📹</span> CCTV Cameras
-                    <span className="text-sm font-normal text-gray-500">({nearbyCCTVs.length})</span>
-                  </h2>
-                  <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+                {nearbyCCTVs.length > 0 ? (
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                     {nearbyCCTVs.map((cctv) => {
                       const isOnline = cctvStatus.get(cctv.id) ?? true;
-                      const bgClass = isOnline ? 'bg-blue-100' : 'bg-red-100';
-                      const iconClass = isOnline ? 'text-blue-600' : 'text-red-600';
-                      const borderClass = isOnline ? 'hover:border-blue-300 hover:bg-blue-50' : 'hover:border-red-300 hover:bg-red-50';
-                      const statusText = isOnline ? 'Online' : 'Offline';
-                      const statusClass = isOnline ? 'text-green-600' : 'text-red-600';
-
                       return (
                         <button
                           key={cctv.id}
                           onClick={() => handleOpenCCTVModal(cctv)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 ${borderClass} transition-colors text-left`}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 hover:border-indigo-300 dark:hover:border-indigo-600/60 hover:shadow-md transition-all text-left group"
                         >
-                          <div className={`w-10 h-10 ${bgClass} rounded-full flex items-center justify-center`}>
-                            <svg className={`w-5 h-5 ${iconClass}`} fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          <div
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+                              isOnline
+                                ? "bg-slate-900 text-emerald-400 border-emerald-500/30"
+                                : "bg-slate-900 text-rose-400 border-rose-500/30"
+                            }`}
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                             </svg>
                           </div>
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            <p className="text-sm font-medium text-gray-800 truncate">{cctv.name}</p>
-                            <p className={`text-xs ${statusClass}`}>{statusText}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {cctv.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span
+                                className={`text-[10px] font-semibold ${
+                                  isOnline ? "text-emerald-600" : "text-rose-600"
+                                }`}
+                              >
+                                {isOnline ? "● Online" : "● Offline"}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
+                              </span>
+                            </div>
                           </div>
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-
-              {/* No CCTVs nearby message */}
-              {nearbyCCTVs.length === 0 && (
-                <div className="p-6 border-b">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="text-red-500">📹</span> CCTV Cameras
-                  </h2>
-                  <div className="text-center text-gray-500 py-4">
-                    <p>No CCTV cameras found near this route.</p>
-                    <p className="text-xs mt-1">CCTVs within 100m of the route will be shown here.</p>
+                ) : (
+                  <div className="text-center py-6 px-4 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">
+                      {routeData
+                        ? "Tidak ada CCTV yang terdeteksi di rute ini."
+                        : "Tentukan titik awal & tujuan untuk menampilkan CCTV di sepanjang rute."}
+                    </p>
+                    <button
+                      onClick={() => setShowAllCCTVs(true)}
+                      className="mt-3 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      Lihat Semua CCTV di Bandung ({CCTVS.length}) →
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            </div>
 
-              {/* Actions */}
-              <div className="p-6 border-t bg-gray-50 space-y-2">
+            {/* Bottom Actions */}
+            {routeData && (
+              <div className="p-3 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/70 flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleFitRoute}
+                  className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                  <span>Pusatkan Rute</span>
+                </button>
                 <button
                   onClick={() => {
-                    const bounds = L.latLngBounds(
-                      routeData.coordinates.map(({ lat, lng }) => [lat, lng] as [number, number])
-                    );
-                    if (mapRef.current) {
-                      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-                    }
+                    setOrigin(null);
+                    setDestination(null);
+                    setWaypoints([]);
+                    setRouteData(null);
                   }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                  className="py-2 px-3 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium rounded-xl transition-colors"
                 >
-                  Fit Route to View
+                  Reset
                 </button>
               </div>
-            </>
-          ) : null}
+            )}
+          </div>
         </div>
       )}
 
-      {/* CCTV Modal */}
+      {/* CCTV Broadcast Modal */}
       <CCTVModal
         isOpen={showCCTV}
         onClose={() => {
@@ -1340,10 +1568,9 @@ export default function RouteMap() {
           setSelectedCCTV(null);
         }}
         cctv={selectedCCTV}
-        allCCTVs={nearbyCCTVs}
+        allCCTVs={showAllCCTVs ? CCTVS : nearbyCCTVs}
         onCCTVChange={(newCCTV) => {
           setSelectedCCTV(newCCTV);
-          // Optional: Pan map to the new CCTV
           if (mapRef.current) {
             mapRef.current.setView([newCCTV.lat, newCCTV.lng], mapRef.current.getZoom());
           }

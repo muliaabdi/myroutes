@@ -6,10 +6,14 @@ import dynamic from "next/dynamic";
 const RouteMap = dynamic(() => import("./RouteMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
+    <div className="flex items-center justify-center h-screen bg-slate-950 text-white">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading map...</p>
+        <div className="relative w-12 h-12 mx-auto mb-4">
+          <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20" />
+          <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+        </div>
+        <p className="text-sm font-medium text-slate-300">Memuat peta & pantauan CCTV...</p>
+        <p className="text-xs text-slate-500 mt-1">Bandung Traffic Network</p>
       </div>
     </div>
   ),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 
 interface CCTVModalProps {
@@ -24,43 +24,53 @@ interface CCTVModalProps {
   onError?: (cctvId: string, hasError: boolean) => void;
 }
 
-export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTVChange, onError }: CCTVModalProps) {
+export default function CCTVModal({
+  isOpen,
+  onClose,
+  cctv,
+  allCCTVs = [],
+  onCCTVChange,
+  onError,
+}: CCTVModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingProxy, setUsingProxy] = useState(false);
+  const [copiedCoords, setCopiedCoords] = useState(false);
 
   // Wrapper function that calls both setError and onError
-  const setErrorWithCallback = (errorMsg: string | null) => {
-    setError(errorMsg);
-    if (cctv?.id && onError) {
-      onError(cctv.id, errorMsg !== null);
-    }
-  };
+  const setErrorWithCallback = useCallback(
+    (errorMsg: string | null) => {
+      setError(errorMsg);
+      if (cctv?.id && onError) {
+        onError(cctv.id, errorMsg !== null);
+      }
+    },
+    [cctv?.id, onError]
+  );
 
   // Get current CCTV index
-  const currentIndex = allCCTVs.length > 0 && cctv
-    ? allCCTVs.findIndex(c => c.id === cctv.id)
-    : -1;
+  const currentIndex =
+    allCCTVs.length > 0 && cctv ? allCCTVs.findIndex((c) => c.id === cctv.id) : -1;
 
   // Navigation functions
-  const goToPrevious = () => {
+  const goToPrevious = useCallback(() => {
     if (currentIndex > 0 && onCCTVChange) {
       onCCTVChange(allCCTVs[currentIndex - 1]);
     }
-  };
+  }, [currentIndex, onCCTVChange, allCCTVs]);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (currentIndex < allCCTVs.length - 1 && onCCTVChange) {
       onCCTVChange(allCCTVs[currentIndex + 1]);
     }
-  };
+  }, [currentIndex, onCCTVChange, allCCTVs]);
 
   // Clear error when CCTV changes
   useEffect(() => {
     setErrorWithCallback(null);
     setLoading(true);
-  }, [cctv?.id]);
+  }, [cctv?.id, setErrorWithCallback]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -74,23 +84,33 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
         e.preventDefault();
         goToNext();
       } else if (e.key === "Escape") {
+        e.preventDefault();
         onClose();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, currentIndex, allCCTVs.length]);
+  }, [isOpen, goToPrevious, goToNext, onClose]);
+
+  // Copy coordinates handler
+  const copyCoordinates = () => {
+    if (!cctv) return;
+    const text = `${cctv.lat.toFixed(6)}, ${cctv.lng.toFixed(6)}`;
+    navigator.clipboard.writeText(text);
+    setCopiedCoords(true);
+    setTimeout(() => setCopiedCoords(false), 2000);
+  };
 
   useEffect(() => {
     const abortController = new AbortController();
+    const video = videoRef.current;
 
     const loadStream = async () => {
-      if (!isOpen || !cctv || !videoRef.current) {
+      if (!isOpen || !cctv || !video) {
         return;
       }
 
-      const video = videoRef.current;
       setErrorWithCallback(null);
       setLoading(true);
 
@@ -103,52 +123,40 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
 
       const streamUrl = cctv.streamUrl;
 
-      // Check if streamUrl exists
       if (!streamUrl) {
         setErrorWithCallback("No stream URL available for this CCTV.");
         setLoading(false);
         return;
       }
 
-      // Check if the URL is a blob URL (not supported)
       if (streamUrl.startsWith("blob:")) {
-        setErrorWithCallback("Blob URLs are not supported. Please use a direct stream URL (HLS, MP4, etc.)");
+        setErrorWithCallback("Blob URLs are not supported. Please use a direct stream URL.");
         setLoading(false);
         return;
       }
 
-      // Use proxy for external streams to bypass CORS
-      // The atcs-dishub server has strict CORS policies
-      // pelindung.bandung.go.id and cctv.bandungkab.go.id are handled by the proxy
       const proxiedUrl = streamUrl.startsWith("http")
         ? `/api/proxy-stream?url=${encodeURIComponent(streamUrl)}`
         : streamUrl;
 
-      if (streamUrl.startsWith("http")) {
-        setUsingProxy(true);
-      } else {
-        setUsingProxy(false);
-      }
+      setUsingProxy(streamUrl.startsWith("http"));
 
-      // Pre-check if stream is available (for proxied URLs)
       if (streamUrl.startsWith("http")) {
         try {
           const checkResponse = await fetch(proxiedUrl, { signal: abortController.signal });
-
           const contentType = checkResponse.headers.get("content-type") || "";
           if (contentType.includes("application/json")) {
             const data = await checkResponse.json();
             if (data.error) {
-              setErrorWithCallback("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
+              setErrorWithCallback("Stream offline or unavailable from ATCS Dishub server.");
               setLoading(false);
               return;
             }
           }
         } catch (e) {
-          if ((e as Error).name === 'AbortError') {
-            return; // Component unmounted or modal closed
+          if ((e as Error).name === "AbortError") {
+            return;
           }
-          // Continue to load stream, pre-check failed
         }
       }
 
@@ -159,24 +167,18 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
           lowLatencyMode: true,
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
-          // Set the base URL for resolving relative paths in the playlist
-          // This ensures segments are loaded from the same origin as the m3u8 file
-          xhrSetup: (xhr, url) => {
-            // Check if the component has been unmounted before sending the request
+          xhrSetup: (xhr) => {
             if (abortController.signal.aborted) {
               xhr.abort();
               return;
             }
-            xhr.timeout = 15000; // 15 second timeout
-            // Set withCredentials to false for cross-origin requests
+            xhr.timeout = 15000;
             xhr.withCredentials = false;
 
-            // Listen for abort signal
-            abortController.signal.addEventListener('abort', () => {
+            abortController.signal.addEventListener("abort", () => {
               xhr.abort();
             });
 
-            // Intercept response to check for JSON error from proxy
             const originalOnReadyStateChange = xhr.onreadystatechange;
             xhr.onreadystatechange = function (this: XMLHttpRequest, event: Event) {
               if (xhr.readyState === 4 && xhr.status === 200) {
@@ -185,14 +187,13 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
                   if (contentType.includes("application/json")) {
                     const response = JSON.parse(xhr.responseText);
                     if (response.error) {
-                      // Trigger error with the proxy's message
                       if (response.status === 404 || response.error === "Stream not available") {
-                        setErrorWithCallback("📡 Stream not available - This CCTV is currently offline or the URL is invalid.");
+                        setErrorWithCallback("CCTV is currently offline or unreachable.");
                         setLoading(false);
                       }
                     }
                   }
-                } catch (e) {
+                } catch {
                   // Not JSON, continue normally
                 }
               }
@@ -208,56 +209,44 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setLoading(false);
-          video.play().catch((e) => {
-            console.error("Autoplay failed:", e);
-            setErrorWithCallback("Click to play video (autoplay blocked by browser)");
+          video.play().catch(() => {
+            setErrorWithCallback("Tap/click to play video (browser autoplay prevented)");
           });
         });
 
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error("HLS error:", data);
-
+        hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
               setErrorWithCallback(
-                "Network error loading stream. The CCTV may be offline or experiencing connection issues. " +
-                "Try opening the stream directly in a new tab."
+                "Network connection issue. The camera feed might be temporarily offline."
               );
               setLoading(false);
             } else {
-              setErrorWithCallback("Failed to load stream. The stream URL may be invalid or offline.");
+              setErrorWithCallback("Failed to load stream. The feed may be unavailable.");
               setLoading(false);
             }
           }
         });
 
         (video as any).hls = hls;
-      }
-      // Native HLS support (Safari)
-      else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = proxiedUrl;
         video.addEventListener("loadedmetadata", () => {
           setLoading(false);
-          video.play().catch((e) => {
-            console.error("Autoplay failed:", e);
-          });
+          video.play().catch(() => {});
         });
         video.addEventListener("error", () => {
-          setErrorWithCallback("Failed to load stream. The CCTV may be offline.");
+          setErrorWithCallback("Failed to load stream. CCTV may be offline.");
           setLoading(false);
         });
-      }
-      // Direct video file (MP4, etc.)
-      else {
+      } else {
         video.src = proxiedUrl;
         video.addEventListener("loadeddata", () => {
           setLoading(false);
-          video.play().catch((e) => {
-            console.error("Autoplay failed:", e);
-          });
+          video.play().catch(() => {});
         });
         video.addEventListener("error", () => {
-          setErrorWithCallback("Failed to load video. Check if the URL is correct.");
+          setErrorWithCallback("Video format not supported or URL unavailable.");
           setLoading(false);
         });
       }
@@ -266,165 +255,227 @@ export default function CCTVModal({ isOpen, onClose, cctv, allCCTVs = [], onCCTV
     loadStream();
 
     return () => {
-      // Abort any ongoing fetch requests
       abortController.abort();
-
-      // Properly cleanup HLS instance
-      if (videoRef.current && (videoRef.current as any).hls) {
-        const hls = (videoRef.current as any).hls;
-        hls.stopLoad(); // Stop loading fragments
-        hls.destroy(); // Destroy the instance
-        delete (videoRef.current as any).hls;
+      if (video && (video as any).hls) {
+        const hls = (video as any).hls;
+        hls.stopLoad();
+        hls.destroy();
+        delete (video as any).hls;
       }
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.src = "";
-        videoRef.current.load(); // Reset media element
+      if (video) {
+        video.pause();
+        video.src = "";
+        video.load();
       }
     };
-  }, [isOpen, cctv]);
+  }, [isOpen, cctv, setErrorWithCallback]);
 
   if (!isOpen || !cctv) return null;
 
+  const isOnline = !error;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-black to-blue-700 text-white">
-          <div className="flex items-center gap-3">
-            {error ? (
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            ) : (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-4xl bg-zinc-950 text-zinc-100 rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden flex flex-col transition-all transform scale-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Bar */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Live Indicator */}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="relative flex h-2.5 w-2.5">
+                {isOnline && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                    isOnline ? "bg-emerald-500" : "bg-rose-500"
+                  }`}
+                />
+              </span>
+              <span
+                className={`text-[11px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full border ${
+                  isOnline
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                }`}
+              >
+                {isOnline ? "Live" : "Offline"}
+              </span>
+            </div>
 
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-            )}
-
-            <div>
-              <h2 className="text-lg font-semibold">{cctv.name}</h2>
-              <p className="text-red-100 text-xs">
-                {cctv.lat.toFixed(6)}, {cctv.lng.toFixed(6)}
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-zinc-100 truncate" title={cctv.name}>
+                {cctv.name}
+              </h2>
+              <p className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                <span>ATCS Dishub Bandung</span>
+                <span>•</span>
+                <span className="font-mono text-zinc-500">
+                  {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
+                </span>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {/* Previous/Next Navigation */}
+
+          {/* Controls: Prev / Next / Close */}
+          <div className="flex items-center gap-1.5 shrink-0 ml-4">
             {allCCTVs.length > 1 && (
-              <>
+              <div className="flex items-center bg-zinc-800/70 border border-zinc-700/60 rounded-lg p-0.5 text-xs text-zinc-300 mr-2">
                 <button
                   onClick={goToPrevious}
                   disabled={currentIndex <= 0}
-                  className="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1"
-                  title="Previous CCTV"
+                  className="p-1.5 rounded hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  title="Previous CCTV (←)"
+                  aria-label="Previous CCTV"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                   </svg>
-                  Prev
                 </button>
-                <span className="text-sm opacity-80">
-                  {currentIndex + 1} / {allCCTVs.length}
+                <span className="px-2 font-mono text-[11px] text-zinc-400">
+                  {currentIndex + 1}/{allCCTVs.length}
                 </span>
                 <button
                   onClick={goToNext}
                   disabled={currentIndex >= allCCTVs.length - 1}
-                  className="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1"
-                  title="Next CCTV"
+                  className="p-1.5 rounded hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  title="Next CCTV (→)"
+                  aria-label="Next CCTV"
                 >
-                  Next
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-                <div className="w-px h-6 bg-white/30 mx-1"></div>
-              </>
+              </div>
             )}
+
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
-              title="Close"
+              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg transition-colors"
+              title="Close (Esc)"
+              aria-label="Close dialog"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         </div>
 
-        {/* Video Container */}
-        <div className="relative z-0 bg-black aspect-video">
-          {error ? (
-            // Stream Not Available Jumbotron
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-              <div className="text-center text-white p-8 max-w-lg">
-                <div className="text-6xl mb-6">📡</div>
-                <h3 className="text-2xl font-bold mb-3">
-                  Stream Not Available
-                </h3>
-                <p className="text-gray-300 mb-6">{error}</p>
-                <p className="text-gray-500 text-xs break-all mb-6 bg-gray-800 p-3 rounded">
-                  {cctv.streamUrl}
-                </p>
-                <a
-                  href={cctv.streamUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors mb-4"
-                >
-                  Open Stream in New Tab
-                </a>
-                <div className="text-xs text-gray-400 text-left bg-gray-800 p-4 rounded mt-4">
-                  <p className="font-semibold mb-2">Note:</p>
-                  <p>CCTV streams may be offline or experiencing network issues. Try opening the stream directly in a new tab, or select a different camera.</p>
+        {/* Video Canvas Area */}
+        <div className="relative bg-black aspect-video overflow-hidden">
+          {/* Native video tag */}
+          <video
+            ref={videoRef}
+            className={`w-full h-full object-contain ${error ? "hidden" : "block"}`}
+            controls
+            playsInline
+            muted
+            autoPlay
+          />
+
+          {error && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/90 p-8">
+              <div className="text-center max-w-md mx-auto">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-2.829-2.829m0 0l2.829-2.829m-2.829 2.829L3 21M8.464 8.464a5 5 0 017.072 0M3 3l18 18" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-zinc-100 mb-1.5">Kamera Sedang Offline</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed mb-5">{error}</p>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setLoading(true);
+                    }}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Coba Muat Ulang
+                  </button>
+                  <a
+                    href={cctv.streamUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <span>Buka Tab Baru</span>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
                 </div>
               </div>
             </div>
-          ) : loading ? (
-            // Loading Spinner
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                <p>Loading stream{usingProxy ? " via proxy..." : "..."}</p>
-                {usingProxy && (
-                  <p className="text-xs text-gray-400 mt-2">
-                    Using CORS proxy to bypass restrictions
-                  </p>
-                )}
+          )}
+
+          {!error && loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/85 p-8">
+              <div className="text-center">
+                <div className="relative w-12 h-12 mx-auto mb-4">
+                  <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20" />
+                  <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+                </div>
+                <p className="text-sm font-medium text-zinc-200">Menghubungkan ke CCTV...</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  {usingProxy ? "Routing via ATCS proxy filter" : "Mengambil stream realtime"}
+                </p>
               </div>
             </div>
-          ) : null}
-
-          {/* Video element - only rendered when no error */}
-          {!error && (
-            <video
-              ref={videoRef}
-              className="w-full h-full"
-              controls
-              playsInline
-              muted
-            />
           )}
         </div>
 
-        {/* Footer */}
-        <div className="relative z-10 px-6 py-4 bg-gray-50 border-t">
-          <div className="flex items-center justify-between pointer-events-auto">
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Location:</span>{" "}
-              <a
-                href={`https://www.google.com/maps?q=${cctv.lat},${cctv.lng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                Open in Google Maps
-              </a>
-            </div>
+        {/* Footer info & quick shortcuts */}
+        <div className="px-5 py-3.5 bg-zinc-900/60 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm rounded-lg transition-colors"
+              onClick={copyCoordinates}
+              className="px-2.5 py-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/50 transition-colors flex items-center gap-1.5"
+              title="Salin koordinat"
             >
-              Close
+              <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>{copiedCoords ? "Tersalin!" : "Salin Koordinat"}</span>
             </button>
+
+            <a
+              href={`https://www.google.com/maps?q=${cctv.lat},${cctv.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/50 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Google Maps</span>
+            </a>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2 text-zinc-500 text-[11px]">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300">←</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300">→</kbd>
+              <span>Ganti CCTV</span>
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300">Esc</kbd>
+              <span>Tutup</span>
+            </span>
           </div>
         </div>
       </div>
