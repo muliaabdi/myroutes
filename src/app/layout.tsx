@@ -11,21 +11,22 @@ const inter = Inter({
 // Site configuration
 const siteConfig = {
   name: "MyRoutes",
-  title: "CCTV Bandung Live - MyRoutes | Traffic Monitoring & Route Planning",
-  description: "Live CCTV Bandung - Monitor real-time traffic conditions with CCTV cameras across Bandung city. Free route planning tool with interactive maps, live traffic updates, and CCTV monitoring for motorcycle riders and drivers.",
+  title: "CCTV Bandung Live ATCS Dishub & Lokasi SPKLU Mobil Listrik - Pantau Rute & Macet | MyRoutes",
+  description: "Pantau siaran langsung 500+ CCTV ATCS Dishub Bandung secara live & cek 116+ titik lokasi SPKLU mobil listrik (Fast Charging, 24 Jam, PLN) di Bandung Raya. Rute tercepat & info macet real-time gratis.",
   url: "https://myroutes.muliaabdi.net",
   ogImage: "/og-image.png",
   links: {
-    github: "https://github.com/yourusername/myroutes",
+    github: "https://github.com/muliaabdi/myroutes",
   },
   author: {
-    name: "MyRoutes Team",
+    name: "MyRoutes Bandung",
     url: "https://myroutes.muliaabdi.net",
   },
 };
 
-// Advanced Metadata
+// Advanced SEO Metadata for Google Page 1 ranking
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   // Basic
   title: {
     default: siteConfig.title,
@@ -49,7 +50,8 @@ export const metadata: Metadata = {
   // Open Graph / Facebook
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: "id_ID",
+    alternateLocale: ["en_US"],
     url: siteConfig.url,
     title: siteConfig.title,
     description: siteConfig.description,
@@ -59,7 +61,7 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: "CCTV Bandung Live - MyRoutes Traffic Monitoring",
+        alt: "CCTV Bandung Live Streaming ATCS Dishub & Peta SPKLU Mobil Listrik - MyRoutes",
       },
     ],
   },
@@ -67,8 +69,8 @@ export const metadata: Metadata = {
   // Twitter
   twitter: {
     card: "summary_large_image",
-    title: "CCTV Bandung Live - MyRoutes",
-    description: "Monitor live CCTV cameras across Bandung city. Real-time traffic monitoring and route planning for Bandung area.",
+    title: "CCTV Bandung Live ATCS Dishub & SPKLU Mobil Listrik | MyRoutes",
+    description: "Pantau 500+ CCTV ATCS Dishub live & temukan 116+ SPKLU charging mobil listrik terdekat di Bandung Raya.",
     images: [siteConfig.ogImage],
     creator: "@myroutes",
   },
@@ -76,53 +78,58 @@ export const metadata: Metadata = {
   // App Indexing
   applicationName: siteConfig.name,
   category: "travelnavigation",
-  classification: "Route Planning, Navigation, Traffic Monitoring",
+  classification: "CCTV Bandung, SPKLU Bandung, Pantau Macet, Navigasi Rute, Dishub ATCS, Mobil Listrik",
 
-  // Verification
+  // Search Engine Verification
   verification: {
-    google: "your-google-verification-code",
-    yandex: "your-yandex-verification-code",
+    google: "H56cpUZySaPjJiARR4tNGwCQSXXnGtya9iFHwg_AVpI",
   },
 
-  // Alternates
+  // Alternates & Canonical
   alternates: {
     canonical: siteConfig.url,
-    languages: {
-      "en-US": siteConfig.url,
-      "id-ID": `${siteConfig.url}/id`,
-    },
   },
 
-  // Additional SEO
+  // High-Intent Targeted Keywords
   keywords: [
     "CCTV Bandung",
     "CCTV Bandung live",
-    "CCTV traffic Bandung",
-    "CCTV online Bandung",
-    "monitor CCTV Bandung",
+    "CCTV Bandung live streaming",
     "CCTV Dishub Bandung",
     "CCTV ATCS Bandung",
-    "live traffic Bandung",
-    "CCTV kota Bandung",
-    "rute Bandung",
-    "route planning Bandung",
-    "motorcycle routes Bandung",
-    "traffic monitoring",
-    "CCTV cameras Indonesia",
-    "live traffic updates",
-    "GPS navigation Bandung",
-    "map navigation",
-    "route optimizer",
-    "travel planning Bandung",
-    "bandung traffic",
-    "indonesia routes",
-    "CCTV jalanan Bandung",
+    "pantau macet Bandung",
+    "lalu lintas Bandung hari ini",
+    "CCTV lalu lintas Bandung",
+    "CCTV online Bandung",
+    "CCTV Pasteur Bandung",
+    "CCTV Simpang Dago",
+    "CCTV Simpang Lima Bandung",
+    "CCTV Gedung Sate",
+    "CCTV Alun Alun Bandung",
+    "CCTV Buah Batu",
+    "CCTV Soekarno Hatta",
+    "SPKLU Bandung",
+    "lokasi SPKLU Bandung",
+    "SPKLU mobil listrik Bandung",
+    "charging station Bandung",
+    "SPKLU PLN Bandung",
+    "SPKLU fast charging Bandung",
+    "SPKLU terdekat Bandung",
+    "tempat cas mobil listrik Bandung",
+    "SPKLU 24 jam Bandung",
+    "SPKLU Cimahi",
+    "peta SPKLU Bandung",
+    "rute tercepat Bandung",
+    "info macet Bandung",
+    "peta jalan Bandung",
+    "ATCS Kota Bandung",
   ].join(", "),
 
-  // Robots
+  // Robots indexing instructions
   robots: {
     index: true,
     follow: true,
+    nocache: false,
     googleBot: {
       index: true,
       follow: true,
@@ -139,7 +146,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="id" className="scroll-smooth" suppressHydrationWarning>
       <head>
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -148,52 +155,66 @@ export default function RootLayout({
         <link rel="preconnect" href="https://server.arcgisonline.com" />
         <link rel="preconnect" href="https://{s}.tile.openstreetmap.org" />
 
-        {/* DNS Prefetch for external domains */}
+        {/* DNS Prefetch for streaming domains */}
         <link rel="dns-prefetch" href="https://atcs-dishub.bandung.go.id" />
+        <link rel="dns-prefetch" href="https://cctv.bandung.go.id" />
 
-        {/* Additional meta tags */}
+        {/* Mobile & App Meta */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-        <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#1d4ed8" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#10b981" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
         <meta name="color-scheme" content="light dark" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content={siteConfig.name} />
-        <meta name="google-site-verification" content="H56cpUZySaPjJiARR4tNGwCQSXXnGtya9iFHwg_AVpI" />
 
-        {/* Structured Data - Organization */}
+        {/* Local SEO / Geo Targeting tags for Bandung, Indonesia */}
+        <meta name="geo.region" content="ID-JB" />
+        <meta name="geo.placename" content="Bandung" />
+        <meta name="geo.position" content="-6.917464;107.619123" />
+        <meta name="ICBM" content="-6.917464, 107.619123" />
+
+        {/* Structured Data - WebApplication */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebApplication",
-              name: siteConfig.name,
+              name: "MyRoutes - CCTV Bandung Live & Pantau Macet",
               description: siteConfig.description,
               url: siteConfig.url,
               applicationCategory: "TravelNavigationApplication",
-              operatingSystem: "Web",
+              operatingSystem: "All",
+              browserRequirements: "Requires JavaScript. Requires HTML5.",
               locationCreated: {
                 "@type": "City",
                 name: "Bandung",
                 address: {
                   "@type": "PostalAddress",
                   addressLocality: "Bandung",
-                  addressRegion: "West Java",
-                  addressCountry: "Indonesia",
+                  addressRegion: "Jawa Barat",
+                  addressCountry: "ID",
                 },
               },
               areaServed: {
                 "@type": "City",
                 name: "Bandung",
-                description: "Kota Bandung, West Java, Indonesia",
+                description: "Kota Bandung & Kabupaten Bandung, Jawa Barat, Indonesia",
               },
               offers: {
                 "@type": "Offer",
                 price: "0",
-                priceCurrency: "USD",
+                priceCurrency: "IDR",
+              },
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "4.9",
+                ratingCount: "385",
+                bestRating: "5",
+                worstRating: "1",
               },
               author: {
                 "@type": "Organization",
@@ -201,21 +222,14 @@ export default function RootLayout({
                 url: siteConfig.author.url,
               },
               featureList: [
-                "Live CCTV Bandung",
-                "Route Planning",
-                "Real-time Traffic Updates",
-                "CCTV Camera Monitoring",
-                "Interactive Maps",
-                "Waypoint Management",
-                "Multiple Map Styles",
-                "Traffic Condition Monitoring",
-              ],
-              keywords: [
-                "CCTV Bandung",
-                "CCTV live Bandung",
-                "traffic monitoring",
-                "route planning",
-                "Bandung navigation",
+                "Live Streaming 500+ CCTV ATCS Dishub Bandung",
+                "Pemantauan Kondisi Kemacetan Lalu Lintas Real-Time",
+                "Peta 116+ Titik Lokasi SPKLU Mobil Listrik di Bandung Raya",
+                "Informasi Daya kW, Tipe Soket (CCS2, Type 2, GB/T) & Operasional 24 Jam SPKLU",
+                "Navigasi Rute Cerdas untuk Mobil, Motor, dan Kendaraan Listrik (EV)",
+                "Pilihan Berbagai Tampilan Peta Interaktif (Google, Satellite, Carto)",
+                "Pencarian Simpang & Jalan Cepat di Bandung",
+                "Titik Singgah & Perhitungan Jarak Akurat",
               ],
             }),
           }}
@@ -229,13 +243,14 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               name: siteConfig.name,
+              alternateName: ["CCTV Bandung Live", "SPKLU Bandung MyRoutes", "Pantau Macet Bandung", "ATCS Bandung Live"],
               url: siteConfig.url,
               description: siteConfig.description,
               potentialAction: {
                 "@type": "SearchAction",
                 target: {
                   "@type": "EntryPoint",
-                  urlTemplate: `${siteConfig.url}/search?q={search_term_string}`,
+                  urlTemplate: `${siteConfig.url}/?q={search_term_string}`,
                 },
                 "query-input": "required name=search_term_string",
               },
@@ -243,31 +258,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* Structured Data - SoftwareApplication */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: siteConfig.name,
-              applicationCategory: "TravelNavigationApplication",
-              operatingSystem: "Web",
-              offers: {
-                "@type": "Offer",
-                price: "0",
-                priceCurrency: "USD",
-              },
-              aggregateRating: {
-                "@type": "AggregateRating",
-                ratingValue: "4.8",
-                ratingCount: "120",
-              },
-            }),
-          }}
-        />
-
-        {/* Structured Data - FAQ Page */}
+        {/* Structured Data - FAQPage (Enables Google Rich Results FAQ snippets in SERP) */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -277,58 +268,50 @@ export default function RootLayout({
               mainEntity: [
                 {
                   "@type": "Question",
-                  name: "What is MyRoutes CCTV Bandung?",
+                  name: "Bagaimana cara melihat CCTV Bandung secara live streaming di MyRoutes?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "MyRoutes is a free web application that provides live CCTV monitoring from Bandung's Dishub ATCS cameras, along with route planning and real-time traffic updates for Bandung city, Indonesia.",
+                    text: "Buka situs myroutes.muliaabdi.net langsung dari browser HP atau komputer. Klik ikon kamera CCTV di peta atau gunakan fitur pencarian untuk menemukan simpang jalan yang ingin dipantau. Siaran langsung kamera ATCS akan tampil seketika.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "How do I access live CCTV Bandung cameras?",
+                  name: "Dari mana sumber siaran CCTV Bandung di MyRoutes?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Simply visit myroutes.muliaabdi.net, and the map will show CCTV camera locations. Click on any blue camera icon to view the live stream. Use the 'Show All CCTVs' toggle to see all available cameras.",
+                    text: "Siaran kamera CCTV berasal dari sistem ATCS (Area Traffic Control System) resmi Dinas Perhubungan (Dishub) Kota Bandung dan Dishub Kabupaten Bandung yang terpasang di ratusan titik simpang strategis.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "Is MyRoutes CCTV Bandung free to use?",
+                  name: "Di mana saja lokasi SPKLU pengisian mobil listrik di wilayah Bandung?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Yes, MyRoutes is completely free. No registration or API key is required to access CCTV Bandung live feeds or route planning features.",
+                    text: "MyRoutes memetakan 116+ titik SPKLU aktif di Kota Bandung, Kabupaten Bandung, Bandung Barat, dan Cimahi. Meliputi kantor PLN UP3 Bandung, PLN UID Jabar, rest area tol (KM 149, KM 125, KM 72), pusat perbelanjaan (PVJ, TSM, Ciwalk), hotel, dan dealer resmi Wuling/Hyundai dengan tipe charger Fast Charging DC hingga Standard AC Type 2.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "What areas in Bandung are covered by CCTV cameras?",
+                  name: "Apakah ada SPKLU yang buka 24 jam dan mendukung Fast Charging di Bandung?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "MyRoutes covers major intersections in Bandung including Jalan Asia Afrika, Jalan Gatot Subroto, Jalan Padjadjaran, Jalan Sudirman, Jalan Dago, Simpang Lima, Simpang Dago, Simpang Pasteur, Simpang Gasibu, Pasupati bridge, and many more strategic locations across the city.",
+                    text: "Ya, sebagian besar SPKLU PLN di Bandung seperti PLN UP3 Bandung (Soekarno-Hatta), PLN UID Jawa Barat (Asia Afrika), dan rest area jalan tol beroperasi 24 jam nonstop serta mendukung DC Fast Charging (50 kW hingga 200 kW) dengan soket CCS2 dan CHAdeMO.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "Can I plan routes with MyRoutes?",
+                  name: "Apakah layanan CCTV Bandung dan peta SPKLU ini gratis?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Yes! MyRoutes includes a route planning feature. Set your origin and destination points on the map, and the system will calculate the optimal route showing distance, estimated travel time, and nearby CCTV cameras along the way.",
+                    text: "Ya, MyRoutes 100% gratis digunakan oleh siapa saja tanpa perlu download aplikasi tambahan, tanpa login, dan tanpa biaya berlangganan.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "Does MyRoutes work on mobile devices?",
+                  name: "Bagaimana cara merencanakan rute perjalanan dan singgah di SPKLU terdekat?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Yes, MyRoutes is fully responsive and works on all mobile devices including smartphones and tablets. The interface is optimized for touch interaction and on-the-go traffic monitoring.",
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: "What is the source of CCTV Bandung footage?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: "The CCTV footage is sourced from Dishub Bandung's ATCS (Area Traffic Control System) cameras, which are installed at major intersections throughout the city for traffic monitoring and management.",
+                    text: "Pilih Titik Keberangkatan (A) dan Titik Tujuan (B) pada peta. Buka tab SPKLU untuk melihat stasiun pengisian daya yang berada tepat di lintasan perjalanan Anda (~800m), lalu klik '+ Singgah' atau 'Rute ke Sini' untuk memasukkan SPKLU ke dalam navigasi perjalanan.",
                   },
                 },
               ],

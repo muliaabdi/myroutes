@@ -3,7 +3,7 @@ import Link from "next/link";
 import cctvs from "@/data/cctvs.json";
 import RouteMapWrapper from "@/components/RouteMapWrapper";
 
-// Generate static params for all CCTV locations
+// Generate static params for all CCTV locations in Bandung
 export async function generateStaticParams() {
   const uniqueLocations = cctvs.reduce((acc: any[], cctv: any) => {
     const locationKey = cctv.name.replace(/KOTA - /, '').split(' - ')[0].trim();
@@ -14,12 +14,12 @@ export async function generateStaticParams() {
     return acc;
   }, []);
 
-  return uniqueLocations.slice(0, 20).map((loc: any) => ({
+  return uniqueLocations.map((loc: any) => ({
     slug: loc.slug,
   }));
 }
 
-// Generate metadata for each location
+// Generate high-intent SEO metadata for each location
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const uniqueLocations = cctvs.reduce((acc: any[], cctv: any) => {
@@ -35,26 +35,49 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   if (!location) {
     return {
-      title: "CCTV Location Not Found - MyRoutes",
+      title: "Lokasi CCTV Tidak Ditemukan - MyRoutes Bandung",
     };
   }
 
+  const title = `CCTV ${location.locationKey} Bandung Live Streaming ATCS Dishub | MyRoutes`;
+  const description = `Pantau siaran langsung kamera CCTV ATCS Dishub di persimpangan ${location.locationKey}, Kota Bandung secara live & real-time. Cek kondisi lalu lintas dan titik macet terkini.`;
+
   return {
-    title: `CCTV ${location.locationKey} Bandung - Live Traffic Camera | MyRoutes`,
-    description: `Live CCTV camera at ${location.locationKey}, Bandung. Monitor real-time traffic conditions at ${location.locationKey} with free access to Dishub Bandung ATCS cameras.`,
+    title,
+    description,
     keywords: [
       `CCTV ${location.locationKey}`,
       `CCTV ${location.locationKey} Bandung`,
-      `${location.locationKey} traffic`,
-      `${location.locationKey} CCTV live`,
-      `CCTV Bandung ${location.locationKey}`,
-      `traffic ${location.locationKey}`,
-      `monitor ${location.locationKey}`,
+      `CCTV live ${location.locationKey}`,
+      `pantau macet ${location.locationKey}`,
+      `lalu lintas ${location.locationKey}`,
+      `CCTV ATCS ${location.locationKey}`,
+      `CCTV Dishub ${location.locationKey}`,
+      `live streaming CCTV Bandung`,
+      `info macet Bandung`,
     ],
+    alternates: {
+      canonical: `https://myroutes.muliaabdi.net/cctv/${slug}`,
+    },
     openGraph: {
-      title: `CCTV ${location.locationKey} Bandung - Live Traffic Camera`,
-      description: `Live CCTV camera at ${location.locationKey}, Bandung. Monitor real-time traffic conditions.`,
+      title,
+      description,
       url: `https://myroutes.muliaabdi.net/cctv/${slug}`,
+      locale: "id_ID",
+      type: "website",
+      images: [
+        {
+          url: "https://myroutes.muliaabdi.net/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: `CCTV ${location.locationKey} Bandung Live Streaming`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
     },
   };
 }
@@ -77,32 +100,63 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
 
   if (!location) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-zinc-950">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Location Not Found</h1>
-          <Link href="/" className="text-blue-600 hover:underline">
-            Return to MyRoutes
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-4">Lokasi Tidak Ditemukan</h1>
+          <Link href="/" className="text-emerald-600 hover:underline">
+            Kembali ke Beranda MyRoutes
           </Link>
         </div>
       </div>
     );
   }
 
-  const jsonLd = {
+  // Schema: BreadcrumbList + VideoObject
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Beranda",
+        item: "https://myroutes.muliaabdi.net",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "CCTV Bandung",
+        item: "https://myroutes.muliaabdi.net",
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `CCTV ${location.locationKey}`,
+        item: `https://myroutes.muliaabdi.net/cctv/${slug}`,
+      },
+    ],
+  };
+
+  const videoJsonLd = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
-    name: `CCTV ${location.locationKey} Bandung - Live Traffic Camera`,
-    description: `Live CCTV camera feed from ${location.locationKey}, Bandung. Monitor real-time traffic conditions at this location.`,
+    name: `CCTV ${location.locationKey} Bandung Live Streaming`,
+    description: `Pantauan live kamera CCTV ATCS Dishub di persimpangan jalan ${location.locationKey}, Bandung secara real-time.`,
     thumbnailUrl: "https://myroutes.muliaabdi.net/og-image.png",
     uploadDate: new Date().toISOString(),
+    publication: {
+      "@type": "BroadcastEvent",
+      isLiveBroadcast: true,
+      startDate: new Date().toISOString(),
+    },
     locationCreated: {
       "@type": "Place",
-      name: location.locationKey,
+      name: `${location.locationKey}, Bandung`,
       address: {
         "@type": "PostalAddress",
         addressLocality: "Bandung",
-        addressRegion: "West Java",
-        addressCountry: "Indonesia",
+        addressRegion: "Jawa Barat",
+        addressCountry: "ID",
       },
     },
   };
@@ -111,7 +165,11 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }}
       />
       <main className="min-h-screen">
         {/* SEO Content - Server Rendered */}

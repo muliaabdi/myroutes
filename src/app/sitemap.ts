@@ -19,22 +19,22 @@ const uniqueLocations = cctvs.reduce((acc: any[], cctv: any) => {
 export default function sitemap(): MetadataRoute.Sitemap {
   const currentDate = new Date();
 
-  // Main pages
-  const mainPages = [
+  // Main homepage
+  const mainPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: currentDate,
-      changeFrequency: 'daily' as const,
-      priority: 1,
+      changeFrequency: 'daily',
+      priority: 1.0,
     },
   ];
 
-  // Location pages (top 20 most important locations)
-  const locationPages = uniqueLocations.slice(0, 20).map((location: any) => ({
+  // Dynamic location pages for every unique CCTV spot in Bandung
+  const locationPages: MetadataRoute.Sitemap = uniqueLocations.map((location: any) => ({
     url: `${baseUrl}/cctv/${location.slug}`,
     lastModified: currentDate,
-    changeFrequency: 'weekly' as const,
-    priority: 0.8,
+    changeFrequency: 'daily',
+    priority: 0.9,
   }));
 
   return [...mainPages, ...locationPages];

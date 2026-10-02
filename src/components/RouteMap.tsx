@@ -48,6 +48,21 @@ interface CCTV {
   online?: boolean;
 }
 
+export interface SPKLU {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  lat: number;
+  lng: number;
+  powerKw: number;
+  chargingSpeed: string;
+  provider: string;
+  category: string;
+  plugType: string;
+  is24h: boolean;
+}
+
 interface Waypoint {
   lat: number;
   lng: number;
@@ -205,12 +220,68 @@ function getCCTVsNearRoute(
   return cctvWithRouteIndex.map((item) => item.cctv);
 }
 
+// Optimized: Filter SPKLUs near route with fast Bounding-Box pre-filtering
+function getSPKLUsNearRoute(
+  spklus: SPKLU[],
+  routeCoordinates: { lat: number; lng: number }[],
+  maxDistance: number = 800
+): SPKLU[] {
+  if (!routeCoordinates || routeCoordinates.length === 0 || spklus.length === 0) return [];
+
+  const degBuffer = (maxDistance * 2.5) / 111000;
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (let i = 0; i < routeCoordinates.length; i++) {
+    const c = routeCoordinates[i];
+    if (c.lat < minLat) minLat = c.lat;
+    if (c.lat > maxLat) maxLat = c.lat;
+    if (c.lng < minLng) minLng = c.lng;
+    if (c.lng > maxLng) maxLng = c.lng;
+  }
+  minLat -= degBuffer;
+  maxLat += degBuffer;
+  minLng -= degBuffer;
+  maxLng += degBuffer;
+
+  const candidates = spklus.filter(
+    (s) => s.lat >= minLat && s.lat <= maxLat && s.lng >= minLng && s.lng <= maxLng
+  );
+
+  const spkluWithRouteIndex = candidates
+    .map((spklu) => {
+      let minDistance = Infinity;
+      let closestIndex = 0;
+
+      routeCoordinates.forEach((coord, index) => {
+        const dist = Math.sqrt(
+          Math.pow(spklu.lat - coord.lat, 2) + Math.pow(spklu.lng - coord.lng, 2)
+        );
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIndex = index;
+        }
+      });
+
+      const distanceToRoute = distanceToPolyline({ lat: spklu.lat, lng: spklu.lng }, routeCoordinates);
+
+      return {
+        spklu,
+        closestIndex,
+        distanceToRoute,
+      };
+    })
+    .filter((item) => item.distanceToRoute <= maxDistance)
+    .sort((a, b) => a.closestIndex - b.closestIndex);
+
+  return spkluWithRouteIndex.map((item) => item.spklu);
+}
+
 export default function RouteMap() {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const cctvLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const spkluLayerGroupRef = useRef<L.LayerGroup | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const waypointMarkersRef = useRef<L.Marker[]>([]);
@@ -228,6 +299,15 @@ export default function RouteMap() {
   const [nearbyCCTVs, setNearbyCCTVs] = useState<CCTV[]>([]);
   const [CCTVS, setCCTVS] = useState<CCTV[]>([]);
   const [cctvStatus, setCctvStatus] = useState<Map<string, boolean>>(new Map());
+  const [updatingCCTV, setUpdatingCCTV] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+
+  // SPKLU States
+  const [spklus, setSPKLUs] = useState<SPKLU[]>([]);
+  const [showSPKLU, setShowSPKLU] = useState(true);
+  const [showAllSPKLUs, setShowAllSPKLUs] = useState(false);
+  const [nearbySPKLUs, setNearbySPKLUs] = useState<SPKLU[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<"cctv" | "spklu">("cctv");
 
   // Origin, Destination, Waypoints
   const [origin, setOrigin] = useState<{ lat: number; lng: number; address: string } | null>(null);
@@ -293,27 +373,63 @@ export default function RouteMap() {
   }, [destination]);
 
   // Load CCTV data
-  useEffect(() => {
-    const loadCCTVs = async () => {
-      try {
-        const res = await fetch("/cctvs.json");
-        if (!res.ok) throw new Error("Failed to load CCTV data");
-        const data = await res.json();
-        const list: CCTV[] = data.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          lat: parseFloat(c.lat),
-          lng: parseFloat(c.lng),
-          streamUrl: c.streamUrl,
-        }));
-        setCCTVS(list);
-      } catch (err) {
-        console.error("Error loading CCTV data:", err);
-        setCCTVS([]);
-      }
-    };
-    loadCCTVs();
+  const loadCCTVs = useCallback(async () => {
+    try {
+      const res = await fetch(`/cctvs.json?t=${Date.now()}`);
+      if (!res.ok) throw new Error("Failed to load CCTV data");
+      const data = await res.json();
+      const list: CCTV[] = data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        lat: parseFloat(c.lat),
+        lng: parseFloat(c.lng),
+        streamUrl: c.streamUrl,
+      }));
+      setCCTVS(list);
+    } catch (err) {
+      console.error("Error loading CCTV data:", err);
+      setCCTVS([]);
+    }
   }, []);
+
+  // Load SPKLU data
+  const loadSPKLUs = useCallback(async () => {
+    try {
+      const res = await fetch(`/spklus.json?t=${Date.now()}`);
+      if (!res.ok) throw new Error("Failed to load SPKLU data");
+      const data = await res.json();
+      setSPKLUs(data);
+    } catch (err) {
+      console.error("Error loading SPKLU data:", err);
+      setSPKLUs([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCCTVs();
+    loadSPKLUs();
+  }, [loadCCTVs, loadSPKLUs]);
+
+  // On-demand scraper update handler
+  const handleUpdateCCTVs = useCallback(async () => {
+    setUpdatingCCTV(true);
+    setUpdateMessage(null);
+    try {
+      const res = await fetch("/api/update-cctv", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        await Promise.all([loadCCTVs(), loadSPKLUs()]);
+        setUpdateMessage(data.message || "Data CCTV & SPKLU berhasil diperbarui!");
+      } else {
+        setUpdateMessage("Gagal: " + (data.error || "Gagal update"));
+      }
+    } catch (err: any) {
+      setUpdateMessage("Gagal: " + (err.message || String(err)));
+    } finally {
+      setUpdatingCCTV(false);
+      setTimeout(() => setUpdateMessage(null), 4500);
+    }
+  }, [loadCCTVs, loadSPKLUs]);
 
   // Handle open CCTV modal
   const handleOpenCCTVModal = useCallback((cctv: CCTV) => {
@@ -458,6 +574,9 @@ export default function RouteMap() {
     const cctvLayer = L.layerGroup().addTo(map);
     cctvLayerGroupRef.current = cctvLayer;
 
+    const spkluLayer = L.layerGroup().addTo(map);
+    spkluLayerGroupRef.current = spkluLayer;
+
     const style = MAP_STYLES[mapStyle];
     const tileLayer = L.tileLayer(style.url, {
       attribution: style.attribution,
@@ -525,6 +644,7 @@ export default function RouteMap() {
         mapRef.current.remove();
         mapRef.current = null;
         cctvLayerGroupRef.current = null;
+        spkluLayerGroupRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -607,16 +727,120 @@ export default function RouteMap() {
     };
   }, [showAllCCTVs, CCTVS, nearbyCCTVs, cctvStatus, handleOpenCCTVModal]);
 
-  // Synchronize CCTV markers and update on viewport pan/zoom
+  // Render SPKLU Charging Station Markers
+  const renderSPKLUMarkers = useCallback(() => {
+    if (!mapRef.current || !spkluLayerGroupRef.current) return;
+    const map = mapRef.current;
+    const layer = spkluLayerGroupRef.current;
+    layer.clearLayers();
+
+    if (!showSPKLU) return;
+
+    const bounds = map.getBounds().pad(0.15);
+    const sourceList = routeData && nearbySPKLUs.length > 0 && !showAllSPKLUs ? nearbySPKLUs : spklus;
+    const visibleList = sourceList.filter((s) => bounds.contains([s.lat, s.lng]));
+
+    visibleList.forEach((spklu) => {
+      const isFast = spklu.powerKw >= 50 || spklu.chargingSpeed.toLowerCase().includes("fast");
+
+      const icon = L.divIcon({
+        html: `
+          <div class="group relative cursor-pointer" title="${spklu.name}">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center shadow-md transition-transform duration-150 group-hover:scale-125 bg-slate-900 border-2 ${
+              isFast ? "border-amber-400 text-amber-400" : "border-emerald-400 text-emerald-400"
+            }">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h7a2 2 0 0 1 2 2v14H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 8h4M7.5 13l2-3h-2l1-3" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 9h2a2 2 0 0 1 2 2v4a2 2 0 0 0 4 0V9a2 2 0 0 0-2-2h-1" />
+              </svg>
+            </div>
+            ${
+              spklu.powerKw > 0
+                ? `<span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-slate-950 text-[8px] font-mono font-bold px-1 rounded border border-slate-700 text-slate-200 whitespace-nowrap shadow-sm">${spklu.powerKw}kW</span>`
+                : ""
+            }
+          </div>
+        `,
+        className: "custom-spklu-marker",
+        iconSize: [32, 36],
+        iconAnchor: [16, 18],
+        popupAnchor: [0, -18],
+      });
+
+      const marker = L.marker([spklu.lat, spklu.lng], { icon });
+      marker.bindPopup(`
+        <div class="p-1 min-w-[220px] max-w-[260px]">
+          <div class="flex items-center justify-between gap-1 mb-1.5">
+            <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+              isFast
+                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+            }">
+              ${spklu.chargingSpeed}
+            </span>
+            ${
+              spklu.is24h
+                ? '<span class="text-[9px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">24 Jam</span>'
+                : ""
+            }
+          </div>
+          <p class="font-bold text-xs text-slate-900 leading-tight mb-1">${spklu.name}</p>
+          <p class="text-[11px] text-slate-500 mb-2 leading-snug line-clamp-2">${spklu.address || spklu.city}</p>
+          <div class="grid grid-cols-2 gap-1 text-[10px] bg-slate-50 p-1.5 rounded-lg mb-2.5">
+            <div>
+              <span class="text-slate-400 block text-[9px]">Daya & Soket</span>
+              <span class="font-semibold text-slate-700 truncate block">${spklu.powerKw} kW • ${spklu.plugType}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[9px]">Provider & Lokasi</span>
+              <span class="font-semibold text-slate-700 truncate block">${spklu.provider} (${spklu.category})</span>
+            </div>
+          </div>
+          <div class="flex gap-1.5">
+            <button
+              onclick="window.setSPKLUDestination(${spklu.lat}, ${spklu.lng}, '${spklu.name.replace(/'/g, "\\'")}')"
+              class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold rounded-lg shadow-sm transition-colors text-center"
+            >
+              Rute ke Sini
+            </button>
+            <button
+              onclick="window.addSPKLUWaypoint(${spklu.lat}, ${spklu.lng}, '${spklu.name.replace(/'/g, "\\'")}')"
+              class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold rounded-lg transition-colors"
+              title="Tambah Titik Singgah"
+            >
+              + Singgah
+            </button>
+          </div>
+        </div>
+      `);
+      layer.addLayer(marker);
+    });
+
+    (window as any).setSPKLUDestination = (lat: number, lng: number, name: string) => {
+      setDestination({ lat, lng, address: name });
+      setDestinationText(name);
+    };
+
+    (window as any).addSPKLUWaypoint = (lat: number, lng: number, name: string) => {
+      setWaypoints((prev) => [...prev, { lat, lng, address: name }]);
+    };
+  }, [showSPKLU, showAllSPKLUs, spklus, nearbySPKLUs, routeData]);
+
+  // Synchronize CCTV & SPKLU markers and update on viewport pan/zoom
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
 
     renderCCTVMarkers();
+    renderSPKLUMarkers();
 
     const onMapMove = () => {
       if (showAllCCTVs) {
         renderCCTVMarkers();
+      }
+      if (showSPKLU) {
+        renderSPKLUMarkers();
       }
     };
 
@@ -624,7 +848,7 @@ export default function RouteMap() {
     return () => {
       map.off("moveend", onMapMove);
     };
-  }, [renderCCTVMarkers, showAllCCTVs]);
+  }, [renderCCTVMarkers, renderSPKLUMarkers, showAllCCTVs, showSPKLU]);
 
   // Fetch Route Data
   useEffect(() => {
@@ -770,7 +994,11 @@ export default function RouteMap() {
     // Calculate nearby CCTVs (150m buffer)
     const nearby = getCCTVsNearRoute(CCTVS, routeData.coordinates, 150);
     setNearbyCCTVs(nearby);
-  }, [routeData, CCTVS, waypoints]);
+
+    // Calculate nearby SPKLUs (800m buffer)
+    const nearSpklu = getSPKLUsNearRoute(spklus, routeData.coordinates, 800);
+    setNearbySPKLUs(nearSpklu);
+  }, [routeData, CCTVS, spklus, waypoints]);
 
   // Fit bounds helper
   const handleFitRoute = () => {
@@ -792,7 +1020,7 @@ export default function RouteMap() {
       <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
         <button
           onClick={() => setShowSidebar(!showSidebar)}
-          className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 shadow-lg text-slate-800 dark:text-zinc-100 font-semibold text-sm hover:bg-slate-50 transition-all active:scale-95"
+          className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 shadow-lg text-slate-800 dark:text-zinc-100 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95"
           title={showSidebar ? "Sembunyikan Panel" : "Buka Panel Rute"}
         >
           <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm">
@@ -817,22 +1045,61 @@ export default function RouteMap() {
 
       {/* Floating Map Action Controls (Right side dock) */}
       <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
-        {/* CCTV Quick Filter Pill */}
-        <button
-          onClick={() => setShowAllCCTVs(!showAllCCTVs)}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-xl border text-xs font-semibold shadow-lg transition-all active:scale-95 ${
-            showAllCCTVs
-              ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/25"
-              : "bg-white/95 dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50"
-          }`}
-          title="Filter Kamera CCTV"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <span>{showAllCCTVs ? `Semua CCTV (${CCTVS.length})` : `CCTV Rute (${nearbyCCTVs.length})`}</span>
-        </button>
+        {/* Filter Pills Container */}
+        <div className="flex items-center gap-2">
+          {/* SPKLU Quick Toggle Pill */}
+          <button
+            onClick={() => {
+              if (!showSPKLU) {
+                setShowSPKLU(true);
+                setShowAllSPKLUs(false);
+              } else if (!showAllSPKLUs && routeData) {
+                setShowAllSPKLUs(true);
+              } else {
+                setShowSPKLU(false);
+                setShowAllSPKLUs(false);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl backdrop-blur-xl border text-xs font-semibold shadow-lg transition-all active:scale-95 ${
+              showSPKLU
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-emerald-500/25"
+                : "bg-white/95 dark:bg-zinc-900/95 text-slate-800 dark:text-zinc-100 border-slate-200/80 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white"
+            }`}
+            title="Toggle Titik Pengisian SPKLU EV"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h7a2 2 0 0 1 2 2v14H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 8h4M7.5 13l2-3h-2l1-3" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 9h2a2 2 0 0 1 2 2v4a2 2 0 0 0 4 0V9a2 2 0 0 0-2-2h-1" />
+            </svg>
+            <span className="font-semibold text-current">
+              {!showSPKLU
+                ? "SPKLU Off"
+                : routeData && !showAllSPKLUs
+                ? `SPKLU Rute (${nearbySPKLUs.length})`
+                : `Semua SPKLU (${spklus.length})`}
+            </span>
+          </button>
+
+          {/* CCTV Quick Filter Pill */}
+          <button
+            onClick={() => setShowAllCCTVs(!showAllCCTVs)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-xl border text-xs font-semibold shadow-lg transition-all active:scale-95 ${
+              showAllCCTVs
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-500 shadow-indigo-500/25"
+                : "bg-white/95 dark:bg-zinc-900/95 text-slate-800 dark:text-zinc-100 border-slate-200/80 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white"
+            }`}
+            title="Filter Kamera CCTV"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="font-semibold text-current">
+              {showAllCCTVs ? `Semua CCTV (${CCTVS.length})` : `CCTV Rute (${nearbyCCTVs.length})`}
+            </span>
+          </button>
+        </div>
 
         {/* Floating Quick Dock */}
         <div className="flex flex-col rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 shadow-lg p-1 gap-1">
@@ -961,7 +1228,36 @@ export default function RouteMap() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
+
+          {/* Sync / Update CCTV Streams Button */}
+          <button
+            onClick={handleUpdateCCTVs}
+            disabled={updatingCCTV}
+            className={`p-2.5 rounded-lg transition-colors ${
+              updatingCCTV
+                ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-600"
+                : "text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
+            }`}
+            title="Update & Sinkronkan Token Stream CCTV"
+          >
+            <svg
+              className={`w-4 h-4 ${updatingCCTV ? "animate-spin text-indigo-600" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
+
+        {/* Update Notification Toast */}
+        {updateMessage && (
+          <div className="max-w-xs bg-slate-900/95 text-white backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl p-2.5 text-xs animate-fadeIn flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+            <p className="flex-1 text-[11px] leading-tight">{updateMessage}</p>
+          </div>
+        )}
 
         {/* Legend Drawer Pill */}
         {showLegend && (
@@ -1449,86 +1745,264 @@ export default function RouteMap() {
                 </div>
               )}
 
-              {/* CCTV List Along Route */}
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
-                      CCTV di Jalur Ini ({nearbyCCTVs.length})
-                    </h2>
+              {/* Tab Switcher: CCTV vs SPKLU */}
+              <div className="px-4 pt-3 pb-1">
+                <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl">
+                  <button
+                    onClick={() => setSidebarTab("cctv")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                      sidebarTab === "cctv"
+                        ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    <span>CCTV</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-mono font-bold">
+                      {routeData ? nearbyCCTVs.length : CCTVS.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab("spklu")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                      sidebarTab === "spklu"
+                        ? "bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h7a2 2 0 0 1 2 2v14H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 8h4M7.5 13l2-3h-2l1-3" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 9h2a2 2 0 0 1 2 2v4a2 2 0 0 0 4 0V9a2 2 0 0 0-2-2h-1" />
+                    </svg>
+                    <span>SPKLU EV</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-mono font-bold">
+                      {routeData ? nearbySPKLUs.length : spklus.length}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* TAB 1: CCTV List Along Route */}
+              {sidebarTab === "cctv" && (
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                        {showAllCCTVs ? `Semua CCTV Bandung (${CCTVS.length})` : `CCTV di Jalur Ini (${nearbyCCTVs.length})`}
+                      </h2>
+                    </div>
+                    {nearbyCCTVs.length > 0 && !showAllCCTVs && (
+                      <span className="text-[10px] text-slate-400">Jarak ~150m dari rute</span>
+                    )}
                   </div>
-                  {nearbyCCTVs.length > 0 && (
-                    <span className="text-[10px] text-slate-400">Jarak ~150m dari rute</span>
+
+                  {(showAllCCTVs ? CCTVS : nearbyCCTVs).length > 0 ? (
+                    <div className="space-y-2.5 pb-6">
+                      {(showAllCCTVs ? CCTVS : nearbyCCTVs).map((cctv) => {
+                        const isOnline = cctvStatus.get(cctv.id) ?? true;
+                        return (
+                          <button
+                            key={cctv.id}
+                            onClick={() => handleOpenCCTVModal(cctv)}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 hover:border-indigo-300 dark:hover:border-indigo-600/60 hover:shadow-md transition-all text-left group"
+                          >
+                            <div
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+                                isOnline
+                                  ? "bg-slate-900 text-emerald-400 border-emerald-500/30"
+                                  : "bg-slate-900 text-rose-400 border-rose-500/30"
+                              }`}
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                {cctv.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span
+                                  className={`text-[10px] font-semibold ${
+                                    isOnline ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                                  }`}
+                                >
+                                  {isOnline ? "● Online" : "● Offline"}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
+                                </span>
+                              </div>
+                            </div>
+                            <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">
+                        {routeData
+                          ? "Tidak ada CCTV yang terdeteksi di rute ini."
+                          : "Tentukan titik awal & tujuan untuk menampilkan CCTV di sepanjang rute."}
+                      </p>
+                      <button
+                        onClick={() => setShowAllCCTVs(true)}
+                        className="mt-3 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                      >
+                        Lihat Semua CCTV di Bandung ({CCTVS.length}) →
+                      </button>
+                    </div>
                   )}
                 </div>
+              )}
 
-                {nearbyCCTVs.length > 0 ? (
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {nearbyCCTVs.map((cctv) => {
-                      const isOnline = cctvStatus.get(cctv.id) ?? true;
-                      return (
-                        <button
-                          key={cctv.id}
-                          onClick={() => handleOpenCCTVModal(cctv)}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 hover:border-indigo-300 dark:hover:border-indigo-600/60 hover:shadow-md transition-all text-left group"
-                        >
+              {/* TAB 2: SPKLU Charging Stations */}
+              {sidebarTab === "spklu" && (
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                        {showAllSPKLUs || !routeData
+                          ? `Semua SPKLU Bandung (${spklus.length})`
+                          : `SPKLU di Jalur Ini (${nearbySPKLUs.length})`}
+                      </h2>
+                    </div>
+                    {routeData && (
+                      <button
+                        onClick={() => setShowAllSPKLUs(!showAllSPKLUs)}
+                        className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        {showAllSPKLUs ? "Filter Rute" : "Lihat Semua"}
+                      </button>
+                    )}
+                  </div>
+
+                  {(showAllSPKLUs || !routeData ? spklus : nearbySPKLUs).length > 0 ? (
+                    <div className="space-y-2.5 pb-6">
+                      {(showAllSPKLUs || !routeData ? spklus : nearbySPKLUs).map((item) => {
+                        return (
                           <div
-                            className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
-                              isOnline
-                                ? "bg-slate-900 text-emerald-400 border-emerald-500/30"
-                                : "bg-slate-900 text-rose-400 border-rose-500/30"
-                            }`}
+                            key={item.id}
+                            className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 hover:border-emerald-300 dark:hover:border-emerald-600/60 transition-all text-left space-y-2.5"
                           >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              {cctv.name}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span
-                                className={`text-[10px] font-semibold ${
-                                  isOnline ? "text-emerald-600" : "text-rose-600"
-                                }`}
+                            <div className="flex items-start gap-3">
+                              {/* Professional EV Icon */}
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h7a2 2 0 0 1 2 2v14H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 8h4M7.5 13l2-3h-2l1-3" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 9h2a2 2 0 0 1 2 2v4a2 2 0 0 0 4 0V9a2 2 0 0 0-2-2h-1" />
+                                </svg>
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200/70 dark:border-zinc-700">
+                                    {item.chargingSpeed}
+                                  </span>
+                                  {item.powerKw > 0 && (
+                                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                                      {item.powerKw} kW
+                                    </span>
+                                  )}
+                                  {item.is24h && (
+                                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/70 dark:border-zinc-700">
+                                      24 Jam
+                                    </span>
+                                  )}
+                                </div>
+
+                                <h3 className="text-xs font-semibold text-slate-900 dark:text-zinc-100 leading-snug line-clamp-1">
+                                  {item.name}
+                                </h3>
+                                <p className="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                                  {item.address || item.city}
+                                </p>
+
+                                <div className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1.5 flex items-center gap-2 flex-wrap">
+                                  <span className="inline-flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v4m6-4v4M6 7h12a2 2 0 0 1 2 2v4a6 6 0 0 1-6 6v2H10v-2a6 6 0 0 1-6-6V9a2 2 0 0 1 2-2Z" />
+                                    </svg>
+                                    <span>{item.plugType}</span>
+                                  </span>
+                                  <span className="text-slate-300 dark:text-zinc-600">•</span>
+                                  <span>{item.provider}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                              <button
+                                onClick={() => {
+                                  if (mapRef.current) {
+                                    mapRef.current.setView([item.lat, item.lng], 16);
+                                  }
+                                }}
+                                className="flex-1 py-1.5 px-2 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors text-center"
                               >
-                                {isOnline ? "● Online" : "● Offline"}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
-                              </span>
+                                Lihat di Peta
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDestination({ lat: item.lat, lng: item.lng, address: item.name });
+                                  setDestinationText(item.name);
+                                }}
+                                className="flex-1 py-1.5 px-2 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors text-center shadow-sm"
+                              >
+                                Rute ke Sini
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setWaypoints((prev) => [...prev, { lat: item.lat, lng: item.lng, address: item.name }]);
+                                }}
+                                className="py-1.5 px-2.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg transition-colors"
+                                title="Tambah Titik Singgah"
+                              >
+                                + Singgah
+                              </button>
                             </div>
                           </div>
-                          <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 px-4 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">
-                      {routeData
-                        ? "Tidak ada CCTV yang terdeteksi di rute ini."
-                        : "Tentukan titik awal & tujuan untuk menampilkan CCTV di sepanjang rute."}
-                    </p>
-                    <button
-                      onClick={() => setShowAllCCTVs(true)}
-                      className="mt-3 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
-                    >
-                      Lihat Semua CCTV di Bandung ({CCTVS.length}) →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h7a2 2 0 0 1 2 2v14H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 8h4M7.5 13l2-3h-2l1-3" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 9h2a2 2 0 0 1 2 2v4a2 2 0 0 0 4 0V9a2 2 0 0 0-2-2h-1" />
+                        </svg>
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">
+                        {routeData
+                          ? "Tidak ada SPKLU di koridor rute ini (~800m)."
+                          : "Tentukan rute perjalanan atau klik tombol di bawah untuk melihat semua titik pengisian SPKLU."}
+                      </p>
+                      <button
+                        onClick={() => setShowAllSPKLUs(true)}
+                        className="mt-3 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        Lihat Semua SPKLU Bandung ({spklus.length}) →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Bottom Actions */}

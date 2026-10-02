@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 import re
 import json
 import time
@@ -82,10 +81,14 @@ class BandungCCTVScraper:
             res = requests.get(url, headers=self.headers, timeout=10)
             html = res.text
 
+            # Ambil hanya blok cctvData aktif (sebelum komentar /*)
+            active_block = re.search(r'const\s+cctvData\s*=\s*\[(.*?)\];', html, re.DOTALL)
+            target_html = active_block.group(1) if active_block else html
+
             # Cari array CCTV data di JavaScript
             # Pattern: { id: 1, name: "NAME", code: "SP", coordinates: [lat, lng], streamUrl: "URL" }
             pattern = r'\{\s*id:\s*(\d+),\s*name:\s*"([^"]+)",\s*code:\s*"([^"]*)",\s*coordinates:\s*\[([^\]]+)\],\s*streamUrl:\s*"([^"]+)"\s*\}'
-            matches = re.findall(pattern, html)
+            matches = re.findall(pattern, target_html)
 
             count = 0
             for match in matches:
@@ -192,19 +195,91 @@ class BandungCCTVScraper:
         except Exception as e:
             self.log("CIMAH", f"Gagal: {e}")
 
+    def scrape_spklu_bandung(self):
+        """Scraping SPKLU khusus Bandung dari spklu.web.id"""
+        self.log("SPKLU", "Memulai scraping SPKLU Bandung...")
+        url = "https://spklu.web.id/wp-content/themes/spklu-web/data/spklu_data.json"
+        try:
+            res = requests.get(url, headers=self.headers, timeout=15)
+            if res.status_code == 200:
+                data = res.json()
+                lk = data.get("lookup", {})
+                speeds = lk.get("speeds", ['DC Ultra Fast', 'DC Fast Charging', 'Medium Charging', 'Standard AC'])
+                kats = lk.get("kats", lk.get("kategori", ['Rest Area Tol', 'Mall / Pusat Belanja', 'Hotel / Penginapan', 'Kantor PLN', 'Dealer / Bengkel', 'Dealer / Bengkel Wuling', 'SPBU', 'Area Publik']))
+                sokets = lk.get("sokets", ['CCS2 & CHAdeMO', 'Type 2 (AC)', 'GB/T (Wuling)', 'GB/T (Wuling) & AC Type 2', 'Multi-socket'])
+
+                raw_items = data.get("data", [])
+                spklus = []
+                for idx, item in enumerate(raw_items):
+                    try:
+                        lat = float(item[3])
+                        lng = float(item[4])
+                        city = str(item[2] or "").strip()
+                        city_lower = city.lower()
+
+                        # Exclude other cities
+                        if any(c in city_lower for c in ["garut", "sumedang", "subang", "purwakarta", "palembang"]):
+                            continue
+
+                        # Filter for Bandung & Cimahi
+                        is_bandung_city = "bandung" in city_lower or "cimahi" in city_lower
+                        is_bandung_coord = (-7.20 <= lat <= -6.70) and (107.38 <= lng <= 107.88)
+
+                        if is_bandung_city or is_bandung_coord:
+                            speed_idx = item[6] if isinstance(item[6], int) and 0 <= item[6] < len(speeds) else None
+                            kat_idx = item[8] if isinstance(item[8], int) and 0 <= item[8] < len(kats) else None
+                            soket_idx = item[9] if isinstance(item[9], int) and 0 <= item[9] < len(sokets) else None
+
+                            spklus.append({
+                                "id": f"spklu-{idx + 1}",
+                                "name": item[0] or "",
+                                "address": item[1] or "",
+                                "city": city,
+                                "lat": lat,
+                                "lng": lng,
+                                "powerKw": int(item[5]) if str(item[5]).isdigit() else 0,
+                                "chargingSpeed": speeds[speed_idx] if speed_idx is not None else "Standard",
+                                "provider": item[7] or "PLN",
+                                "category": kats[kat_idx] if kat_idx is not None else "Area Publik",
+                                "plugType": sokets[soket_idx] if soket_idx is not None else "Multi-socket",
+                                "is24h": item[10] == 1
+                            })
+                    except Exception:
+                        continue
+
+                self.spklu_list = spklus
+                self.log("SPKLU", f"Berhasil memfilter {len(spklus)} SPKLU di wilayah Bandung.")
+            else:
+                self.log("SPKLU", f"Status HTTP: {res.status_code}")
+        except Exception as e:
+            self.log("SPKLU", f"Gagal: {e}")
+
     def save_to_json(self):
-        # Tentukan path relatif ke struktur Next.js Anda
-        target_dir = os.path.join("src", "data")
-        filename = os.path.join(target_dir, "cctvs.json")
+        targets = [
+            os.path.join("src", "data", "cctvs.json"),
+            os.path.join("public", "cctvs.json")
+        ]
 
-        # Buat folder src/data jika belum ada
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
-            print(f"[INFO] Folder {target_dir} berhasil dibuat.")
+        for filepath in targets:
+            folder = os.path.dirname(filepath)
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            with open(filepath, "w") as f:
+                json.dump(self.master_list, f, indent=2)
+            print(f"[DONE] Total {len(self.master_list)} CCTV disimpan ke {filepath}")
 
-        with open(filename, 'w') as f:
-            json.dump(self.master_list, f, indent=4)
-        print(f"\n[DONE] Total {len(self.master_list)} CCTV disimpan ke {filename}")
+        if hasattr(self, "spklu_list") and self.spklu_list:
+            spklu_targets = [
+                os.path.join("src", "data", "spklus.json"),
+                os.path.join("public", "spklus.json")
+            ]
+            for filepath in spklu_targets:
+                folder = os.path.dirname(filepath)
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+                with open(filepath, "w") as f:
+                    json.dump(self.spklu_list, f, indent=2)
+                print(f"[DONE] Total {len(self.spklu_list)} SPKLU disimpan ke {filepath}")
 
 if __name__ == "__main__":
     scraper = BandungCCTVScraper()
@@ -213,4 +288,5 @@ if __name__ == "__main__":
     scraper.scrape_kab_bandung()
     scraper.scrape_pelindung()
     scraper.scrape_cimahi()
+    scraper.scrape_spklu_bandung()
     scraper.save_to_json()

@@ -115,7 +115,11 @@ export async function GET(request: NextRequest) {
 
             // It's a URL or path - rewrite to use proxy
             try {
-              const segmentUrl = trimmed.startsWith("http") ? trimmed : new URL(trimmed, baseUrl).href;
+              let segmentUrl = trimmed.startsWith("http") ? trimmed : new URL(trimmed, baseUrl).href;
+              // Forward query parameters (e.g. ?api=token) to video segment if not present
+              if (baseUrl.search && !segmentUrl.includes("?")) {
+                segmentUrl += baseUrl.search;
+              }
               return `/api/proxy-stream?url=${encodeURIComponent(segmentUrl)}`;
             } catch {
               return line;
