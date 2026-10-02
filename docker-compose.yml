@@ -14,7 +14,8 @@ services:
       - 8.8.4.4
       - 1.1.1.1
     volumes:
-      - ./public/cctvs.json:/app/public/cctvs.json:ro
+      - ./public/cctvs.json:/app/public/cctvs.json
+      - ./public/spklus.json:/app/public/spklus.json
     environment:
       - NODE_ENV=production
       - PORT=3000

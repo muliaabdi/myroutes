@@ -181,6 +181,7 @@ async function handleUpdate(request: NextRequest) {
           path.join(rootDir, "public", "spklus.json"),
         ];
         for (const f of spkluFiles) {
+          if (!fs.existsSync(f)) continue;
           fs.writeFileSync(f, JSON.stringify(bandungSpklu, null, 2), "utf8");
         }
       }
