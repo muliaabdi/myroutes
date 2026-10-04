@@ -18,6 +18,34 @@ async function handleUpdate(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const fullScrape = searchParams.get("full") === "true";
+    const checkStatus = searchParams.get("check_status") === "true";
+
+    // If check status requested, run check_cctv_status.py
+    if (checkStatus) {
+      try {
+        const rootDir = process.cwd();
+        const { stdout } = await execAsync("python3 check_cctv_status.py", {
+          cwd: rootDir,
+          timeout: 60000,
+        });
+
+        return NextResponse.json({
+          success: true,
+          type: "status_check",
+          message: "Pengecekan status CCTV selesai.",
+          output: stdout.slice(-500),
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Gagal menjalankan check_cctv_status: " + (err.message || String(err)),
+          },
+          { status: 500 }
+        );
+      }
+    }
 
     // If full scrape requested, run scraper.py
     if (fullScrape) {

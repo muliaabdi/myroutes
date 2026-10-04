@@ -260,12 +260,29 @@ class BandungCCTVScraper:
             os.path.join("public", "cctvs.json")
         ]
 
+        # Preserve existing online/offline status
+        existing_status = {}
+        for filepath in targets:
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        prev = json.load(f)
+                        for item in prev:
+                            if 'id' in item and 'online' in item:
+                                existing_status[item['id']] = item['online']
+                except Exception:
+                    pass
+                break
+
+        for c in self.master_list:
+            c['online'] = existing_status.get(c['id'], True)
+
         for filepath in targets:
             folder = os.path.dirname(filepath)
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            with open(filepath, "w") as f:
-                json.dump(self.master_list, f, indent=2)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(self.master_list, f, indent=2, ensure_ascii=False)
             print(f"[DONE] Total {len(self.master_list)} CCTV disimpan ke {filepath}")
 
         if hasattr(self, "spklu_list") and self.spklu_list:

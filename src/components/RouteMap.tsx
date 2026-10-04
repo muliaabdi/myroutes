@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CCTVModal from "./CCTVModal";
+import { getCCTVProvider } from "@/lib/cctv";
 
 // Fix for default marker icons in Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -45,6 +46,7 @@ interface CCTV {
   lat: number;
   lng: number;
   streamUrl: string;
+  region?: string;
   online?: boolean;
 }
 
@@ -408,8 +410,15 @@ export default function RouteMap() {
         lat: parseFloat(c.lat),
         lng: parseFloat(c.lng),
         streamUrl: c.streamUrl,
+        region: c.region,
+        online: c.online !== false,
       }));
       setCCTVS(list);
+      const statusMap = new Map<string, boolean>();
+      list.forEach((c) => {
+        statusMap.set(c.id, c.online !== false);
+      });
+      setCctvStatus(statusMap);
     } catch (err) {
       console.error("Error loading CCTV data:", err);
       setCCTVS([]);
@@ -727,7 +736,8 @@ export default function RouteMap() {
               ${isOnline ? "Online Live" : "Offline"}
             </span>
           </div>
-          <p class="font-semibold text-xs text-slate-900 dark:text-zinc-100 leading-snug mb-2.5">${cctv.name}</p>
+          <p class="font-semibold text-xs text-slate-900 dark:text-zinc-100 leading-snug mb-1">${cctv.name}</p>
+          <p class="text-[10px] text-slate-500 dark:text-zinc-400 mb-2.5">${getCCTVProvider(cctv.name, cctv.region)}</p>
           <button
             onclick="window.openCCTVModal('${cctv.id}')"
             class="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5"
@@ -1875,8 +1885,8 @@ export default function RouteMap() {
                                 >
                                   {isOnline ? "● Online" : "● Offline"}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
+                                <span className="text-[10px] text-slate-400 truncate">
+                                  {getCCTVProvider(cctv.name, cctv.region)}
                                 </span>
                               </div>
                             </div>

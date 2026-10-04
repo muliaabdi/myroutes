@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
+import { getCCTVProvider } from "@/lib/cctv";
 
 interface CCTVModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface CCTVModalProps {
     lat: number;
     lng: number;
     streamUrl: string;
+    region?: string;
+    online?: boolean;
   } | null;
   allCCTVs?: Array<{
     id: string;
@@ -19,10 +22,13 @@ interface CCTVModalProps {
     lat: number;
     lng: number;
     streamUrl: string;
+    region?: string;
+    online?: boolean;
   }>;
-  onCCTVChange?: (cctv: { id: string; name: string; lat: number; lng: number; streamUrl: string }) => void;
+  onCCTVChange?: (cctv: { id: string; name: string; lat: number; lng: number; streamUrl: string; region?: string; online?: boolean }) => void;
   onError?: (cctvId: string, hasError: boolean) => void;
 }
+
 
 export default function CCTVModal({
   isOpen,
@@ -52,15 +58,53 @@ export default function CCTVModal({
     }
   };
 
+  const updatingTokenRef = useRef(false);
+  const reportedStatusRef = useRef<Map<string, boolean>>(new Map());
+
+  const reportStatus = useCallback(
+    async (cctvId: string, isOnline: boolean) => {
+      // Skip if already reported this session with same status
+      if (reportedStatusRef.current.get(cctvId) === isOnline) return;
+
+      // Skip if it already matches the initial prop status
+      if (
+        cctv &&
+        cctv.id === cctvId &&
+        cctv.online === isOnline &&
+        !reportedStatusRef.current.has(cctvId)
+      ) {
+        reportedStatusRef.current.set(cctvId, isOnline);
+        return;
+      }
+
+      reportedStatusRef.current.set(cctvId, isOnline);
+      try {
+        await fetch("/api/cctv-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: cctvId, online: isOnline }),
+        });
+      } catch {
+        // non-blocking
+      }
+    },
+    [cctv]
+  );
+
   // Wrapper function that calls both setError and onError
   const setErrorWithCallback = useCallback(
     (errorMsg: string | null) => {
       setError(errorMsg);
-      if (cctv?.id && onError) {
-        onError(cctv.id, errorMsg !== null);
+      if (cctv?.id) {
+        const hasErr = errorMsg !== null;
+        if (onError) onError(cctv.id, hasErr);
+        // Only report offline when stream fails, not when browser prevents autoplay
+        if (hasErr && !errorMsg.includes("Tap/click to play")) {
+          reportStatus(cctv.id, false);
+        }
       }
     },
-    [cctv?.id, onError]
+    [cctv?.id, onError, reportStatus]
   );
 
   // Get current CCTV index
@@ -223,6 +267,8 @@ export default function CCTVModal({
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setLoading(false);
+          reportStatus(cctv.id, true);
+          if (onError) onError(cctv.id, false);
           video.play().catch(() => {
             setErrorWithCallback("Tap/click to play video (browser autoplay prevented)");
           });
@@ -247,6 +293,8 @@ export default function CCTVModal({
         video.src = proxiedUrl;
         video.addEventListener("loadedmetadata", () => {
           setLoading(false);
+          reportStatus(cctv.id, true);
+          if (onError) onError(cctv.id, false);
           video.play().catch(() => {});
         });
         video.addEventListener("error", () => {
@@ -282,7 +330,7 @@ export default function CCTVModal({
         video.load();
       }
     };
-  }, [isOpen, cctv, setErrorWithCallback]);
+  }, [isOpen, cctv, setErrorWithCallback, onError, reportStatus]);
 
   if (!isOpen || !cctv) return null;
 
@@ -330,7 +378,7 @@ export default function CCTVModal({
                 {cctv.name}
               </h2>
               <p className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
-                <span>ATCS Dishub Bandung</span>
+                <span>{getCCTVProvider(cctv.name, cctv.region)}</span>
                 <span>•</span>
                 <span className="font-mono text-zinc-500">
                   {cctv.lat.toFixed(4)}, {cctv.lng.toFixed(4)}
