@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import cctvs from "@/data/cctvs.json";
 import RouteMapWrapper from "@/components/RouteMapWrapper";
 
@@ -94,22 +95,18 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
   }, []);
 
   const location = uniqueLocations.find((loc: any) => loc.slug === slug);
-  const locationCCTVs = cctvs.filter((cctv: any) =>
-    cctv.name.toLowerCase().includes(location?.locationKey.toLowerCase() || "")
-  );
 
   if (!location) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-zinc-950">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-4">Lokasi Tidak Ditemukan</h1>
-          <Link href="/" className="text-emerald-600 hover:underline">
-            Kembali ke Beranda MyRoutes
-          </Link>
-        </div>
-      </div>
-    );
+    notFound();
   }
+
+  const locationCCTVs = cctvs.filter((cctv: any) =>
+    cctv.name.toLowerCase().includes(location.locationKey.toLowerCase())
+  );
+
+  const otherLocations = uniqueLocations
+    .filter((loc: any) => loc.slug !== slug)
+    .slice(0, 6);
 
   // Schema: BreadcrumbList + VideoObject
   const breadcrumbJsonLd = {
@@ -125,8 +122,8 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
       {
         "@type": "ListItem",
         position: 2,
-        name: "CCTV Bandung",
-        item: "https://myroutes.muliaabdi.net",
+        name: "Direktori CCTV",
+        item: "https://myroutes.muliaabdi.net/cctv",
       },
       {
         "@type": "ListItem",
@@ -143,11 +140,11 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
     name: `CCTV ${location.locationKey} Bandung Live Streaming`,
     description: `Pantauan live kamera CCTV ATCS Dishub di persimpangan jalan ${location.locationKey}, Bandung secara real-time.`,
     thumbnailUrl: "https://myroutes.muliaabdi.net/og-image.png",
-    uploadDate: new Date().toISOString(),
+    uploadDate: "2026-10-01T00:00:00+07:00",
     publication: {
       "@type": "BroadcastEvent",
       isLiveBroadcast: true,
-      startDate: new Date().toISOString(),
+      startDate: "2026-10-01T00:00:00+07:00",
     },
     locationCreated: {
       "@type": "Place",
@@ -171,132 +168,180 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }}
       />
-      <main className="min-h-screen">
-        {/* SEO Content - Server Rendered */}
-        <div className="sr-only">
-          <article>
-            <h1>CCTV {location.locationKey} Bandung - Live Traffic Camera</h1>
-            <h2>Monitor Real-Time Traffic at {location.locationKey}</h2>
-            <p>
-              Access live CCTV camera feed at {location.locationKey}, Bandung, West Java, Indonesia.
-              This camera is part of the Dishub Bandung ATCS (Area Traffic Control System) network
-              providing real-time traffic monitoring for better route planning and traffic management.
-            </p>
+      <main className="min-h-screen bg-slate-950 text-slate-100">
+        {/* Visible Header Banner with Navigation */}
+        <header className="bg-slate-950 text-white py-6 px-4 border-b border-slate-800">
+          <div className="max-w-5xl mx-auto">
+            <nav className="flex items-center gap-2 text-xs text-slate-400 mb-3" aria-label="Breadcrumb">
+              <Link href="/" className="hover:text-white transition-colors">
+                Beranda
+              </Link>
+              <span>/</span>
+              <Link href="/cctv" className="hover:text-white transition-colors">
+                Direktori CCTV
+              </Link>
+              <span>/</span>
+              <span className="text-indigo-400 font-medium">CCTV {location.locationKey}</span>
+            </nav>
 
-            <h2>About {location.locationKey} Location</h2>
-            <p>
-              {location.locationKey} is a key intersection in Bandung with significant traffic flow.
-              Monitoring this location helps travelers and commuters plan their routes effectively
-              and avoid congestion during peak hours.
-            </p>
-
-            <h2>Available Camera Views</h2>
-            <ul>
-              {locationCCTVs.map((cctv: any) => (
-                <li key={cctv.id}>{cctv.name} - Live traffic monitoring</li>
-              ))}
-            </ul>
-
-            <h2>How to Use This CCTV Feed</h2>
-            <ol>
-              <li>View the live camera stream above to check current traffic conditions</li>
-              <li>Use the interactive map to explore nearby CCTV cameras</li>
-              <li>Plan your route by setting origin and destination points</li>
-              <li>Toggle &quot;Show All CCTVs&quot; to see all available cameras in Bandung</li>
-            </ol>
-
-            <h2> Nearby CCTV Locations</h2>
-            <p>
-              Explore other CCTV cameras in Bandung including Soekarno Hatta, Gatot Subroto,
-              Padjadjaran, Sudirman, Dago, and many more strategic locations across the city.
-            </p>
-          </article>
-        </div>
-
-        {/* Visible Header Banner */}
-        <div className="bg-slate-950 text-white py-8 px-4 border-b border-slate-800">
-          <div className="max-w-4xl mx-auto">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-3"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span>Kembali ke Peta Utama</span>
-            </Link>
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-1">
+            <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                  CCTV {location.locationKey} Bandung
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  CCTV {location.locationKey} Bandung Live Streaming
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">
-                  Pantauan lalu lintas realtime persimpangan {location.locationKey}, Kota Bandung
+                <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+                  Pantauan siaran langsung kamera ATCS Dishub persimpangan {location.locationKey}, Kota Bandung secara real-time.
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  {locationCCTVs.length} Kamera Aktif
+                  {locationCCTVs.length} Kamera Terdeteksi
                 </span>
+                <Link
+                  href="/"
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-xl transition-colors"
+                >
+                  Peta Rute
+                </Link>
               </div>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Map Component */}
-        <RouteMapWrapper />
+        <section aria-label="Peta Interaktif CCTV" className="relative">
+          <RouteMapWrapper />
+        </section>
 
-        {/* Additional Info Section */}
-        <div className="max-w-4xl mx-auto py-12 px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-sm">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center mb-3">
+        {/* Visible Structured Content for Users & Googlebot */}
+        <div className="max-w-5xl mx-auto py-10 px-4 space-y-10">
+          {/* Active Camera List Section */}
+          <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-white mb-2">
+              Daftar Titik Kamera CCTV {location.locationKey}
+            </h2>
+            <p className="text-xs text-slate-400 mb-4">
+              Kamera pengawas ATCS Dishub di kawasan {location.locationKey} yang dapat dipantau langsung pada peta di atas:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {locationCCTVs.map((cctv: any) => (
+                <div
+                  key={cctv.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/80"
+                >
+                  <div className="min-w-0 pr-3">
+                    <p className="text-xs font-semibold text-slate-200 truncate">
+                      {cctv.name}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Koordinat: {Number(cctv.lat).toFixed(4)}, {Number(cctv.lng).toFixed(4)}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Live
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Traffic and Area Guide */}
+          <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-white mb-3">
+              Kondisi Lalu Lintas &amp; Informasi Wilayah {location.locationKey}
+            </h2>
+            <div className="text-slate-300 text-xs sm:text-sm leading-relaxed space-y-3">
+              <p>
+                Persimpangan <strong>{location.locationKey}</strong> merupakan salah satu simpul transportasi vital di Kota Bandung.
+                Jalur ini sering mengalami peningkatan volume kendaraan pada jam sibuk pagi hari (07.00 - 09.00 WIB)
+                saat jam berangkat kerja dan sekolah, serta sore hari (16.30 - 19.30 WIB).
+              </p>
+              <p>
+                Kamera CCTV di kawasan ini terhubung langsung ke sistem ATCS (Area Traffic Control System) Dinas Perhubungan Kota Bandung.
+                Data visual real-time ini membantu pengendara sepeda motor dan mobil mengambil keputusan rute terbaik,
+                menghindari penumpukan antrean lampu merah, serta menghemat waktu perjalanan.
+              </p>
+            </div>
+          </section>
+
+          {/* Highlights & Features */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-3">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">ATCS Dishub Bandung</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Feed langsung dari kamera Area Traffic Control System Dishub Kota Bandung secara realtime.
+              <h3 className="text-sm font-bold text-white mb-1">ATCS Dishub Resmi</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Feed siaran kamera dari jaringan Area Traffic Control System Dishub Bandung.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-sm">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+            <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-3">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">Rute Bebas Macet</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Kalkulasi rute cerdas untuk mobil & motor dengan deteksi kamera CCTV di sepanjang jalan.
+              <h3 className="text-sm font-bold text-white mb-1">Rute Navigasi Cerdas</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Cari alternatif jalan tercepat dengan deteksi titik kamera di sepanjang rute.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-sm">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-600 flex items-center justify-center mb-3">
+            <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center mb-3">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">Ringan & Mobile-First</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Dioptimalkan untuk akses cepat di ponsel pengendara tanpa aplikasi tambahan.
+              <h3 className="text-sm font-bold text-white mb-1">Ringan di Ponsel</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Streaming lancar langsung dari browser mobile tanpa aplikasi tambahan.
               </p>
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900 to-slate-900 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Internal Linking: Nearby & Other CCTV Locations */}
+          <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h2 className="text-base font-bold text-white">
+                Jelajahi Titik CCTV Lainnya di Bandung
+              </h2>
+              <Link
+                href="/cctv"
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+              >
+                Lihat Semua Lokasi →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {otherLocations.map((loc: any) => (
+                <Link
+                  key={loc.slug}
+                  href={`/cctv/${loc.slug}`}
+                  className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-indigo-500/40 hover:bg-slate-800/40 transition-all text-xs font-medium text-slate-200 hover:text-indigo-300"
+                >
+                  CCTV {loc.locationKey}
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Bottom CTA */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900/80 to-slate-900 border border-indigo-500/30 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold">Rencanakan Perjalanan Melewati {location.locationKey}?</h3>
               <p className="text-xs text-indigo-200 mt-1 max-w-lg">
-                Atur titik awal dan tujuan Anda di peta utama untuk mengecek kemacetan sebelum berangkat.
+                Atur titik keberangkatan dan tujuan di peta utama untuk mengecek kemacetan sebelum berangkat.
               </p>
             </div>
             <Link
               href="/"
-              className="px-5 py-2.5 bg-white hover:bg-slate-100 text-indigo-950 font-semibold text-xs rounded-xl shadow-sm transition-all shrink-0"
+              className="px-5 py-2.5 bg-white hover:bg-slate-100 text-indigo-950 font-semibold text-xs rounded-xl shadow-md transition-all shrink-0"
             >
               Buka Perencana Rute
             </Link>
