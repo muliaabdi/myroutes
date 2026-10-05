@@ -158,6 +158,45 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
     },
   };
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `Berapa kamera CCTV aktif yang memantau persimpangan ${location.locationKey}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Saat ini terdapat ${locationCCTVs.length} titik kamera CCTV ATCS Dishub aktif yang memantau pergerakan arus lalu lintas di kawasan ${location.locationKey}, Kota Bandung.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Kapan jam sibuk dan rawan macet di persimpangan ${location.locationKey}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Kepadatan di ${location.locationKey} biasanya meningkat pada jam berangkat kerja (06.30 - 08.30 WIB) dan jam pulang kerja (16.30 - 19.30 WIB) hari kerja, serta akhir pekan/hari libur.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Bagaimana cara mencari rute jalan alternatif menghindari macet di ${location.locationKey}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Gunakan fitur Perencana Rute di MyRoutes. Sistem akan mencarikan rute navigasi terbaik serta menampilkan kamera CCTV dan SPKLU terdekat di sepanjang lintasan Anda.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Mengapa siaran kamera CCTV ${location.locationKey} kadang offline?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Siaran CCTV bersumber langsung dari server Dishub. Status offline umumnya bersifat sementara saat server Dishub melakukan pemeliharaan jaringan atau pembaruan token siaran.`,
+        },
+      },
+    ],
+  };
+
   return (
     <>
       <script
@@ -167,6 +206,10 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <main className="min-h-screen bg-slate-950 text-slate-100">
         {/* Visible Header Banner with Navigation */}
@@ -304,6 +347,50 @@ export default async function CCTVLocationPage({ params }: { params: Promise<{ s
               </p>
             </div>
           </div>
+
+          {/* Frequently Asked Questions (FAQ) Section */}
+          <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <h2 className="text-lg font-bold text-white">
+                Tanya Jawab (FAQ) Lalu Lintas &amp; CCTV {location.locationKey}
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-xs sm:text-sm">
+                  Berapa kamera CCTV aktif yang memantau persimpangan {location.locationKey}?
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Terdapat {locationCCTVs.length} titik kamera pengawas ATCS Dishub aktif yang memantau kondisi lalu lintas langsung di sekitar {location.locationKey}.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-xs sm:text-sm">
+                  Kapan jam sibuk dan rawan macet di persimpangan {location.locationKey}?
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Kepadatan biasanya memuncak pada jam berangkat kerja (06.30 - 08.30 WIB) dan jam pulang kerja (16.30 - 19.30 WIB) hari kerja, serta akhir pekan.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-xs sm:text-sm">
+                  Bagaimana cara mencari rute alternatif menghindari macet di {location.locationKey}?
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Gunakan tombol perencana rute di bawah. Sistem akan mencarikan jalur tercepat dan memetakan kamera CCTV serta SPKLU di sepanjang rute.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-xs sm:text-sm">
+                  Mengapa siaran kamera CCTV {location.locationKey} kadang tidak bisa diputar?
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Siaran live terhubung ke server ATCS Dishub. Status offline umumnya bersifat sementara saat perbaikan fisik di jalan atau update token siaran.
+                </p>
+              </div>
+            </div>
+          </section>
 
           {/* Internal Linking: Nearby & Other CCTV Locations */}
           <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">

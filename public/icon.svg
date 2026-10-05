@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient for App Icon -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Vibrant Emerald Pin Gradient -->
+    <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="40%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+
+    <!-- Route Line Highlight Gradient -->
+    <linearGradient id="lineGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+
+    <!-- Inner Core Slate Gradient -->
+    <linearGradient id="coreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+
+    <!-- Rim Light -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.03" />
+    </linearGradient>
+
+    <!-- Drop Shadow for Pin -->
+    <filter id="pinShadow" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.6" />
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#059669" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Canvas (For PWA / App Icon) -->
+  <rect x="20" y="20" width="472" height="472" rx="108" fill="url(#bgGrad)" />
+  <rect x="20" y="20" width="472" height="472" rx="108" fill="none" stroke="url(#rimGrad)" stroke-width="2" />
+
+  <!-- Background Ambient Radar Ring (Subtle) -->
+  <circle cx="256" cy="220" r="190" fill="none" stroke="#10b981" stroke-width="1.5" stroke-dasharray="10 10" opacity="0.18" />
+
+  <!-- Iconic Map Pin Silhouette with Depth -->
+  <path
+    d="M 256 52 
+       C 152 52, 68 136, 68 240 
+       C 68 340, 216 438, 246 456 
+       C 252 460, 260 460, 266 456 
+       C 296 438, 444 340, 444 240 
+       C 444 136, 360 52, 256 52 Z"
+    fill="url(#pinGrad)"
+    filter="url(#pinShadow)"
+  />
+
+  <!-- Pin Gloss Highlight (Top Rim) -->
+  <path
+    d="M 256 56 
+       C 156 56, 74 138, 74 240 
+       C 74 250, 76 260, 78 270 
+       C 100 170, 170 96, 256 96 
+       C 342 96, 412 170, 434 270 
+       C 436 260, 438 250, 438 240 
+       C 438 138, 356 56, 256 56 Z"
+    fill="#ffffff"
+    opacity="0.25"
+  />
+
+  <!-- Dark Core Lens / Route Arena -->
+  <circle cx="256" cy="224" r="132" fill="url(#coreGrad)" stroke="#064e3b" stroke-width="4" />
+  <circle cx="256" cy="224" r="132" fill="none" stroke="#34d399" stroke-width="2" opacity="0.4" />
+
+  <!-- Center Route Motif forming stylized 'M' with Live Nodes -->
+  <!-- Route Ribbon Pathway -->
+  <path
+    d="M 166 270 
+       L 196 176 
+       L 256 236 
+       L 316 176 
+       L 346 270"
+    fill="none"
+    stroke="url(#lineGrad)"
+    stroke-width="22"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Center Live Surveillance Camera Lens (Apex Hub) -->
+  <circle cx="256" cy="236" r="26" fill="#0f172a" stroke="#34d399" stroke-width="5" />
+  <circle cx="256" cy="236" r="12" fill="#10b981" />
+  <circle cx="252" cy="232" r="3.5" fill="#ffffff" />
+
+  <!-- Start Point (A) - EV Green Node -->
+  <circle cx="166" cy="270" r="16" fill="#0f172a" stroke="#34d399" stroke-width="4" />
+  <circle cx="166" cy="270" r="7" fill="#34d399" />
+
+  <!-- End Point (B) - Forward Navigation Arrow -->
+  <circle cx="346" cy="270" r="16" fill="#0f172a" stroke="#34d399" stroke-width="4" />
+  <polygon points="340,260 358,270 340,280" fill="#34d399" />
+
+  <!-- Live Recording / Active Traffic Beacon (Top Right of Pin) -->
+  <circle cx="376" cy="116" r="16" fill="#020617" />
+  <circle cx="376" cy="116" r="12" fill="#ef4444" />
+  <circle cx="376" cy="116" r="5" fill="#ffffff" />
+</svg>

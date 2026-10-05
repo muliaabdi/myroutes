@@ -103,6 +103,61 @@ export default function CCTVDirectoryPage() {
     url: "https://myroutes.muliaabdi.net/cctv",
   };
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "Bagaimana cara menonton siaran langsung CCTV ATCS Bandung?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Klik salah satu kawasan jalan di direktori ini atau buka Peta Interaktif. Anda bisa langsung menonton siaran live ATCS tanpa perlu registrasi, download aplikasi, atau membayar.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Kenapa sebagian siaran CCTV kadang berstatus offline atau hitam?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Feed CCTV dikelola langsung oleh server ATCS Dinas Perhubungan. Status offline biasanya terjadi jika kamera sedang dalam proses perbaikan fisik di jalan, gangguan jaringan fiber optik, atau pembaruan token streaming oleh Dishub.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Kapan jam rawan macet di jalan protokol Kota Bandung?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Jam macet utama terjadi pada jam berangkat kerja (06.30 - 08.30 WIB) dan jam pulang kerja (16.30 - 19.30 WIB) di koridor Soekarno-Hatta, Pasteur, dan Surapati. Pada akhir pekan, kepadatan meningkat di kawasan wisata Dago, Cihampelas, dan Setiabudi.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Apakah siaran kamera CCTV Bandung ini real-time?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Ya, siaran ditayangkan langsung secara streaming HLS dari kamera Dishub Bandung dengan latensi hanya beberapa detik tergantung kecepatan koneksi internet Anda.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Berapa total kamera CCTV Dishub yang dipetakan di MyRoutes?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "MyRoutes memetakan lebih dari 500 kamera pantau yang mencakup Kota Bandung, Kabupaten Bandung (Soreang, Dayeuhkolot, Cileunyi), hingga Kota Cimahi.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Apakah ada rekaman riwayat video CCTV untuk bukti kecelakaan?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "MyRoutes hanya menayangkan siaran langsung (live feed) dan tidak menyimpan rekaman riwayat video. Untuk permohonan rekaman resmi insiden atau kecelakaan lalu lintas, masyarakat dapat menghubungi langsung kantor Dinas Perhubungan Kota Bandung.",
+        },
+      },
+    ],
+  };
+
   return (
     <>
       <script
@@ -112,6 +167,10 @@ export default function CCTVDirectoryPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <main className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
@@ -193,6 +252,40 @@ export default function CCTVDirectoryPage() {
               Dengan MyRoutes, Anda dapat memantau feed video live dari kamera pengawas ATCS Dishub secara langsung tanpa login,
               membantu menentukan rute perjalanan terbaik dan menghindari titik rawan kemacetan di Kota Bandung.
             </p>
+          </section>
+
+          {/* Frequently Asked Questions (FAQ) */}
+          <section className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-slate-300 text-sm leading-relaxed mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+              <h2 className="text-xl font-bold text-white">Pertanyaan Umum (FAQ) Seputar CCTV Bandung</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-sm">Bagaimana cara menonton siaran langsung CCTV ATCS Bandung?</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Cukup pilih salah satu kawasan jalan di direktori ini atau buka Peta Interaktif. Video live streaming ATCS akan berputar secara instan tanpa perlu registrasi atau aplikasi tambahan.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-sm">Kenapa sebagian siaran CCTV kadang berstatus offline atau hitam?</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Feed CCTV dikelola langsung oleh server ATCS Dishub. Status offline umumnya terjadi karena proses perbaikan fisik kamera di jalan, gangguan fiber optik, atau pembaruan token streaming berkala oleh Dishub.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-sm">Kapan jam rawan macet di jalan protokol Kota Bandung?</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Jam padat utama terjadi pada jam berangkat kerja (06.30 - 08.30 WIB) dan jam pulang kerja (16.30 - 19.30 WIB) di koridor Soekarno-Hatta, Pasteur, dan Surapati, serta akhir pekan di kawasan wisata.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <h3 className="font-semibold text-white mb-1.5 text-sm">Apakah ada rekaman riwayat video CCTV untuk bukti kecelakaan?</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  MyRoutes hanya menayangkan siaran langsung (live feed) dan tidak menyimpan rekaman riwayat. Untuk permohonan rekaman resmi insiden, silakan hubungi langsung Dinas Perhubungan Kota Bandung.
+                </p>
+              </div>
+            </div>
           </section>
         </div>
       </main>

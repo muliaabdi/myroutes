@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 100" width="100%" height="100%">
+  <defs>
+    <!-- Pin Gradient -->
+    <linearGradient id="logoPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+
+    <!-- Core Lens Gradient -->
+    <linearGradient id="logoCoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+
+    <!-- Route Line Highlight -->
+    <linearGradient id="logoLineGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+
+    <!-- Brand Text Gradient -->
+    <linearGradient id="textEmeraldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+
+    <style>
+      .brand-text-main { fill: #0f172a; }
+      .brand-sub-text { fill: #64748b; }
+      @media (prefers-color-scheme: dark) {
+        .brand-text-main { fill: #f8fafc; }
+        .brand-sub-text { fill: #94a3b8; }
+      }
+    </style>
+  </defs>
+
+  <!-- Left Icon Mark: Scaled Pin centered at (50, 50) -->
+  <g transform="translate(10, 8) scale(0.18)">
+    <!-- Pin Silhouette -->
+    <path
+      d="M 256 24 
+         C 142 24, 50 116, 50 230 
+         C 50 342, 212 452, 246 474 
+         C 252 478, 260 478, 266 474 
+         C 300 452, 462 342, 462 230 
+         C 462 116, 370 24, 256 24 Z"
+      fill="url(#logoPinGrad)"
+    />
+
+    <!-- Top Gloss Highlight -->
+    <path
+      d="M 256 28 
+         C 146 28, 56 118, 56 230 
+         C 56 242, 58 254, 60 264 
+         C 84 154, 162 72, 256 72 
+         C 350 72, 428 154, 452 264 
+         C 454 254, 456 242, 456 230 
+         C 456 118, 366 28, 256 28 Z"
+      fill="#ffffff"
+      opacity="0.28"
+    />
+
+    <!-- Dark Core Lens Arena -->
+    <circle cx="256" cy="214" r="144" fill="url(#logoCoreGrad)" stroke="#064e3b" stroke-width="6" />
+    <circle cx="256" cy="214" r="144" fill="none" stroke="#34d399" stroke-width="3" opacity="0.5" />
+
+    <!-- Center Route 'M' -->
+    <path
+      d="M 158 266 
+         L 190 162 
+         L 256 228 
+         L 322 162 
+         L 354 266"
+      fill="none"
+      stroke="url(#logoLineGrad)"
+      stroke-width="26"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Camera Lens Hub -->
+    <circle cx="256" cy="228" r="30" fill="#0f172a" stroke="#34d399" stroke-width="6" />
+    <circle cx="256" cy="228" r="14" fill="#10b981" />
+    <circle cx="251" cy="223" r="4" fill="#ffffff" />
+
+    <!-- Start & End Nodes -->
+    <circle cx="158" cy="266" r="18" fill="#020617" stroke="#34d399" stroke-width="5" />
+    <circle cx="158" cy="266" r="8" fill="#6ee7b7" />
+    <circle cx="354" cy="266" r="18" fill="#020617" stroke="#34d399" stroke-width="5" />
+    <polygon points="347,255 367,266 347,277" fill="#6ee7b7" />
+
+    <!-- Live Beacon -->
+    <circle cx="388" cy="96" r="18" fill="#020617" />
+    <circle cx="388" cy="96" r="13" fill="#ef4444" />
+    <circle cx="388" cy="96" r="5" fill="#ffffff" />
+  </g>
+
+  <!-- Typography: Wordmark "MyRoutes" -->
+  <g transform="translate(112, 54)">
+    <text font-family="system-ui, -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif" font-weight="800" font-size="38" letter-spacing="-0.8">
+      <tspan class="brand-text-main">My</tspan>
+      <tspan fill="url(#textEmeraldGrad)">Routes</tspan>
+    </text>
+  </g>
+
+  <!-- Subtitle Badge: "BANDUNG LIVE • CCTV & SPKLU" -->
+  <g transform="translate(114, 76)">
+    <!-- Live Pulse Dot -->
+    <circle cx="5" cy="-4" r="4" fill="#10b981" />
+    <circle cx="5" cy="-4" r="2" fill="#ffffff" />
+    <text x="16" y="0" font-family="system-ui, -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="11" letter-spacing="1.8" class="brand-sub-text">
+      BANDUNG LIVE <tspan fill="#cbd5e1" font-weight="400">|</tspan> CCTV &amp; SPKLU
+    </text>
+  </g>
+</svg>

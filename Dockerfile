@@ -34,7 +34,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Set permissions
 RUN chmod -R 777 /app/.next
 
-USER nextjs
+# USER nextjs
 
 EXPOSE 3000
 

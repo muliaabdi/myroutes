@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import Image from "next/image";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CCTVModal from "./CCTVModal";
@@ -1057,11 +1058,7 @@ export default function RouteMap() {
           className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 shadow-lg text-slate-800 dark:text-zinc-100 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95"
           title={showSidebar ? "Sembunyikan Panel" : "Buka Panel Rute"}
         >
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-          </div>
+          <Image src="/favicon.svg" alt="MyRoutes" width={24} height={24} className="w-6 h-6 object-contain drop-shadow-sm transition-transform duration-200 group-hover:scale-105" />
           <span>MyRoutes</span>
           <span className="hidden sm:inline-flex text-[11px] font-normal text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-700 pl-2">
             Bandung Live
