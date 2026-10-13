@@ -402,10 +402,11 @@ export default function RouteMap() {
   // Load CCTV data
   const loadCCTVs = useCallback(async () => {
     try {
-      const res = await fetch(`/cctvs.json?t=${Date.now()}`);
+      const res = await fetch(`/api/cctvs?t=${Date.now()}`);
       if (!res.ok) throw new Error("Failed to load CCTV data");
-      const data = await res.json();
-      const list: CCTV[] = data.map((c: any) => ({
+      const payload = await res.json();
+      const raw: any[] = Array.isArray(payload) ? payload : payload?.data ?? [];
+      const list: CCTV[] = raw.map((c: any) => ({
         id: c.id,
         name: c.name,
         lat: parseFloat(c.lat),

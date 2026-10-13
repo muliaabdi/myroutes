@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { repairBandungKabUrl } from "@/lib/cctv-cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,25 +10,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing stream URL" }, { status: 400 });
     }
 
-    // Use shorter timeout for cctv.bandungkab.go.id (server often doesn't respond)
-    const isProblematicDomain = streamUrl.includes("cctv.bandungkab.go.id");
-    const timeoutMs = isProblematicDomain ? 8000 : 30000; // 8 sec for problematic, 30 sec for others
+    // Auto-repair Bandung Kab URLs that might carry expired token hashes
+    const isBandungKab = streamUrl.includes("cctv.bandungkab.go.id");
+    let targetUrl = isBandungKab ? await repairBandungKabUrl(streamUrl) : streamUrl;
+
+    const timeoutMs = isBandungKab ? 12000 : 30000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      // Fetch the stream from the actual CCTV server
-      // Determine the correct headers based on the stream URL
       let headers: Record<string, string> = {};
 
-      if (streamUrl.includes("cctv.bandungkab.go.id")) {
-        // Try minimal headers for cctv.bandungkab.go.id
-        // This server seems to reject custom headers
+      if (isBandungKab) {
         headers = {
           "Accept": "*/*",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         };
       } else {
-        // Use full headers for other domains
         headers = {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           "Referer": "https://pelindung.bandung.go.id/",
@@ -37,34 +36,63 @@ export async function GET(request: NextRequest) {
         };
       }
 
-      const response = await fetch(streamUrl, {
+      let response = await fetch(targetUrl, {
         headers,
         // @ts-ignore - redirect option exists
         redirect: "follow",
         signal: controller.signal,
       });
 
+      // Handle Bandung Kab token expiration (status 401/403/404 or JSON { "ok": false, "msg": "Not Authorized" })
+      let textBody: string | null = null;
+      if (isBandungKab) {
+        const contentType = response.headers.get("content-type") || "";
+        const isM3u8OrJson = contentType.includes("json") || contentType.includes("mpegurl") || targetUrl.includes(".m3u8");
+
+        if (!response.ok || isM3u8OrJson) {
+          const peekText = await response.text();
+          if (!response.ok || peekText.includes('"ok": false') || peekText.includes("Not Authorized")) {
+            console.warn("[PROXY-STREAM] Expired token detected for KAB stream, force refreshing token...", targetUrl);
+            const freshUrl = await repairBandungKabUrl(streamUrl, true);
+            if (freshUrl !== targetUrl) {
+              targetUrl = freshUrl;
+              response = await fetch(targetUrl, {
+                headers,
+                // @ts-ignore
+                redirect: "follow",
+                signal: controller.signal,
+              });
+              if (response.ok) {
+                textBody = await response.text();
+              }
+            } else {
+              textBody = peekText;
+            }
+          } else {
+            textBody = peekText;
+          }
+        }
+      }
+
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-
-        // Special handling for 404 - stream not available
         if (response.status === 404) {
           return NextResponse.json(
             {
               error: "Stream not available",
               message: "This CCTV stream is currently offline or the URL is no longer valid. The camera may be disconnected or undergoing maintenance.",
-              url: streamUrl,
+              url: targetUrl,
               status: 404,
             },
-            { status: 200 } // Return 200 so the client can handle the error gracefully
+            { status: 200 }
           );
         }
 
         return NextResponse.json(
           {
             error: `Failed to fetch stream: ${response.status} ${response.statusText}`,
-            url: streamUrl,
+            url: targetUrl,
             contentType: response.headers.get("content-type"),
             status: response.status,
           },
@@ -72,10 +100,8 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Get the content type
       const contentType = response.headers.get("content-type") || "application/octet-stream";
 
-      // Stream the response back using Web Streams
       const responseHeaders = new Headers();
       responseHeaders.set("Access-Control-Allow-Origin", "*");
       responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
@@ -86,26 +112,24 @@ export async function GET(request: NextRequest) {
       responseHeaders.set("Expires", "0");
 
       // Check if it's an HLS manifest (m3u8)
-      if (contentType.includes("mpegurl") || streamUrl.includes(".m3u8")) {
-        const text = await response.text();
-        const baseUrl = new URL(streamUrl);
+      if (contentType.includes("mpegurl") || targetUrl.includes(".m3u8")) {
+        const text = textBody !== null ? textBody : await response.text();
+        const baseUrl = new URL(targetUrl);
+        const searchToForward = baseUrl.search || "";
 
-        // Rewrite segment URLs to use the proxy
         const proxiedText = text
           .split("\n")
           .map((line) => {
             const trimmed = line.trim();
+            if (trimmed === "") return line;
 
-            // Skip empty lines and comments that don't contain URLs
-            if (trimmed === "" || (trimmed.startsWith("#") && !trimmed.includes("URI="))) {
-              return line;
-            }
-
-            // Handle tags with URI attribute (like #EXT-X-MAP:URI="init.mp4")
             if (trimmed.startsWith("#") && trimmed.includes("URI=")) {
               return line.replace(/URI="([^"]+)"/g, (_, uri) => {
                 try {
-                  const segmentUrl = uri.startsWith("http") ? uri : new URL(uri, baseUrl).href;
+                  let segmentUrl = uri.startsWith("http") ? uri : new URL(uri, baseUrl).href;
+                  if (searchToForward && !segmentUrl.includes("?")) {
+                    segmentUrl += searchToForward;
+                  }
                   return `URI="/api/proxy-stream?url=${encodeURIComponent(segmentUrl)}"`;
                 } catch {
                   return `URI="${uri}"`;
@@ -113,12 +137,12 @@ export async function GET(request: NextRequest) {
               });
             }
 
-            // It's a URL or path - rewrite to use proxy
+            if (trimmed.startsWith("#")) return line;
+
             try {
               let segmentUrl = trimmed.startsWith("http") ? trimmed : new URL(trimmed, baseUrl).href;
-              // Forward query parameters (e.g. ?api=token) to video segment if not present
-              if (baseUrl.search && !segmentUrl.includes("?")) {
-                segmentUrl += baseUrl.search;
+              if (searchToForward && !segmentUrl.includes("?")) {
+                segmentUrl += searchToForward;
               }
               return `/api/proxy-stream?url=${encodeURIComponent(segmentUrl)}`;
             } catch {
@@ -142,8 +166,7 @@ export async function GET(request: NextRequest) {
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
       if (fetchError.name === "AbortError") {
-        const isProblematicDomain = streamUrl.includes("cctv.bandungkab.go.id");
-        const errorMsg = isProblematicDomain
+        const errorMsg = isBandungKab
           ? "Stream server not responding - this CCTV may be offline or the stream URL may be expired. Try opening in a new tab or use an alternative camera."
           : "Request timeout - stream may be slow or offline";
         return NextResponse.json({ error: errorMsg }, { status: 504 });

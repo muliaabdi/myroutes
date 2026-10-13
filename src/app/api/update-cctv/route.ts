@@ -1,10 +1,131 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import https from "https";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { redis } from "@/lib/redis";
+import { cctvCache, fetchLiveKabStreams } from "@/lib/cctv-cache";
 
 const execAsync = promisify(exec);
+
+// Self-signed cert bypass for pelindung.bandung.go.id
+const insecureAgent = new https.Agent({ rejectUnauthorized: false });
+
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+function fetchWithInsecure(url: string, init: RequestInit = {}): Promise<Response> {
+  // Node 18+ supports `agent` in undici-backed fetch when passed via dispatcher,
+  // but undici isn't a direct dep. Use https.get as fallback for self-signed hosts.
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      {
+        method: init.method || "GET",
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        agent: insecureAgent,
+        headers: (init.headers as Record<string, string>) || {},
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          const body = Buffer.concat(chunks);
+          const headers = new Headers();
+          Object.entries(res.headers).forEach(([k, v]) => {
+            if (Array.isArray(v)) v.forEach((vv) => headers.append(k, vv));
+            else if (v != null) headers.set(k, String(v));
+          });
+          resolve(
+            new Response(body, {
+              status: res.statusCode || 200,
+              statusText: res.statusMessage || "OK",
+              headers,
+            })
+          );
+        });
+      }
+    );
+    req.on("error", reject);
+    if (init.body) req.write(init.body);
+    req.end();
+  });
+}
+
+async function scrapeKab(): Promise<Record<string, { id: string; name: string; lat: number; lng: number; streamUrl: string }>> {
+  const res = await fetch("https://dishub.bandungkab.go.id/cctv/", {
+    headers: { "User-Agent": BROWSER_UA, Accept: "text/html,*/*" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`KAB HTTP ${res.status}`);
+  const html = await res.text();
+  const block = html.match(/const\s+cctvData\s*=\s*\[([\s\S]*?)\];/);
+  const target = block ? block[1] : html;
+  const pattern =
+    /\{\s*id:\s*(\d+),\s*name:\s*"([^"]+)",\s*code:\s*"([^"]*)",\s*coordinates:\s*\[([^\]]+)\],\s*streamUrl:\s*"([^"]+)"\s*\}/g;
+  const out: Record<string, any> = {};
+  let m;
+  while ((m = pattern.exec(target)) !== null) {
+    const [, cctvId, name, , coords, streamUrl] = m;
+    const [latS, lngS] = coords.split(",");
+    out[`kab-${cctvId}`] = {
+      id: `kab-${cctvId}`,
+      name: `KAB - ${name}`,
+      lat: parseFloat(latS),
+      lng: parseFloat(lngS),
+      streamUrl,
+    };
+  }
+  return out;
+}
+
+async function scrapePelindung(): Promise<Record<string, { streamUrl: string; name?: string; lat?: number; lng?: number }>> {
+  const res = await fetchWithInsecure("https://pelindung.bandung.go.id:8443/api/cek", {
+    headers: { "User-Agent": BROWSER_UA, "X-Requested-With": "XMLHttpRequest" },
+  });
+  if (!res.ok) throw new Error(`Pelindung HTTP ${res.status}`);
+  const data = (await res.json()) as Array<Record<string, any>>;
+  const out: Record<string, any> = {};
+  for (const item of data) {
+    const id = item?.id;
+    if (id == null) continue;
+    out[`pelindung-${id}`] = {
+      streamUrl: item.stream_cctv || "",
+      name: item.cctv_name ? `PELINDUNG - ${item.cctv_name}` : undefined,
+      lat: typeof item.lat === "number" ? item.lat : parseFloat(item.lat),
+      lng: typeof item.lng === "number" ? item.lng : parseFloat(item.lng),
+    };
+  }
+  return out;
+}
+
+async function scrapeKbb(): Promise<Record<string, { streamUrl: string; name?: string; lat?: number; lng?: number }>> {
+  const res = await fetch("https://atcs.bandungbaratkab.go.id/get-cctv", {
+    headers: { "User-Agent": BROWSER_UA },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`KBB HTTP ${res.status}`);
+  const json: any = await res.json();
+  if (json?.status !== "success" || !Array.isArray(json.data)) return {};
+  const out: Record<string, any> = {};
+  json.data.forEach((item: any, i: number) => {
+    const coords = String(item?.koordinat || "0,0").split(",");
+    const streamUrl = String(item?.link || "")
+      .replace(".html", ".m3u8")
+      .replace("id/", "id/memfs/");
+    out[`kbb-${i}`] = {
+      streamUrl,
+      name: item?.nama_cctv ? `KBB - ${item.nama_cctv}` : undefined,
+      lat: parseFloat(coords[0]),
+      lng: parseFloat(coords[1]),
+    };
+  });
+  return out;
+}
 
 export async function POST(request: NextRequest) {
   return handleUpdate(request);
@@ -75,59 +196,49 @@ async function handleUpdate(request: NextRequest) {
       }
     }
 
-    // Default fast update: Scrape & update Dishub Kabupaten Bandung streams in real-time
-    const kabUrl = "https://dishub.bandungkab.go.id/cctv/";
-    const res = await fetch(kabUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      next: { revalidate: 0 },
-    });
+    // Default fast update: refresh tokens for all expiring providers (KAB, Pelindung, KBB) in parallel
+    const [kabResult, pelindungResult, kbbResult] = await Promise.allSettled([
+      fetchLiveKabStreams(true).then((r) => r.streams),
+      scrapePelindung(),
+      scrapeKbb(),
+    ]);
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch dishub.bandungkab.go.id: HTTP ${res.status}`);
+    const newKabStreams: Record<string, { id: string; name: string; lat: number; lng: number; streamUrl: string }> =
+      kabResult.status === "fulfilled" ? kabResult.value : {};
+    const newPelindungStreams: Record<string, { streamUrl: string; name?: string; lat?: number; lng?: number }> =
+      pelindungResult.status === "fulfilled" ? pelindungResult.value : {};
+    const newKbbStreams: Record<string, { streamUrl: string; name?: string; lat?: number; lng?: number }> =
+      kbbResult.status === "fulfilled" ? kbbResult.value : {};
+
+    // 1. Immediately update in-memory cache so subsequent /api/cctvs & /api/proxy-stream requests use them
+    if (Object.keys(newKabStreams).length > 0) {
+      cctvCache.kabStreams = newKabStreams;
+    }
+    if (Object.keys(newPelindungStreams).length > 0) {
+      cctvCache.pelindungStreams = newPelindungStreams;
+    }
+    if (Object.keys(newKbbStreams).length > 0) {
+      cctvCache.kbbStreams = newKbbStreams;
     }
 
-    const html = await res.text();
+    const providerErrors: Record<string, string> = {};
+    if (kabResult.status === "rejected") providerErrors.kab = String(kabResult.reason);
+    if (pelindungResult.status === "rejected") providerErrors.pelindung = String(pelindungResult.reason);
+    if (kbbResult.status === "rejected") providerErrors.kbb = String(kbbResult.reason);
 
-    // Match only the active cctvData block (before /* comment)
-    const activeBlockMatch = html.match(/const\s+cctvData\s*=\s*\[([\s\S]*?)\];/);
-    const targetHtml = activeBlockMatch ? activeBlockMatch[1] : html;
+    const scrapedCount =
+      Object.keys(newKabStreams).length +
+      Object.keys(newPelindungStreams).length +
+      Object.keys(newKbbStreams).length;
 
-    // Pattern: { id: 1, name: "NAME", code: "SP", coordinates: [lat, lng], streamUrl: "URL" }
-    const pattern = /\{\s*id:\s*(\d+),\s*name:\s*"([^"]+)",\s*code:\s*"([^"]*)",\s*coordinates:\s*\[([^\]]+)\],\s*streamUrl:\s*"([^"]+)"\s*\}/g;
-
-    const newKabStreams: Record<
-      string,
-      { id: string; name: string; lat: number; lng: number; streamUrl: string }
-    > = {};
-
-    let match;
-    while ((match = pattern.exec(targetHtml)) !== null) {
-      const cctvId = match[1];
-      const name = match[2];
-      const coords = match[4].split(",");
-      const lat = parseFloat(coords[0].trim());
-      const lng = parseFloat(coords[1].trim());
-      const streamUrl = match[5];
-
-      newKabStreams[`kab-${cctvId}`] = {
-        id: `kab-${cctvId}`,
-        name: `KAB - ${name}`,
-        lat,
-        lng,
-        streamUrl,
-      };
-    }
-
-    const scrapedCount = Object.keys(newKabStreams).length;
     if (scrapedCount === 0) {
-      throw new Error("Tidak ada data CCTV yang ditemukan pada halaman sumber.");
+      throw new Error(
+        "Tidak ada data CCTV yang berhasil di-scrape dari semua provider. " +
+          JSON.stringify(providerErrors)
+      );
     }
 
-    // Update both src/data/cctvs.json and public/cctvs.json
+    // Merge scrapes into existing CCTV list & persist to disk
     const rootDir = process.cwd();
     const targetFiles = [
       path.join(rootDir, "src", "data", "cctvs.json"),
@@ -135,34 +246,60 @@ async function handleUpdate(request: NextRequest) {
     ];
 
     let totalCount = 0;
+    const perProviderUpdated = {
+      kab: Object.keys(newKabStreams).length,
+      pelindung: Object.keys(newPelindungStreams).length,
+      kbb: Object.keys(newKbbStreams).length,
+    };
+
     for (const filePath of targetFiles) {
       if (!fs.existsSync(filePath)) continue;
 
-      let list: any[] = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      try {
+        let list: any[] = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-      // Remove inactive kab-4 if present
-      list = list.filter((item) => item.id !== "kab-4");
+        // Remove inactive kab-4 if present
+        list = list.filter((item) => item.id !== "kab-4");
 
-      // Update existing or append new
-      list = list.map((item) => {
-        if (newKabStreams[item.id]) {
-          return {
-            ...item,
-            name: newKabStreams[item.id].name,
-            lat: newKabStreams[item.id].lat,
-            lng: newKabStreams[item.id].lng,
-            streamUrl: newKabStreams[item.id].streamUrl,
-          };
-        }
-        return item;
-      });
+        // Update existing items with fresh tokens from each provider
+        list = list.map((item) => {
+          if (item.id.startsWith("kab-") && newKabStreams[item.id]) {
+            const u = newKabStreams[item.id];
+            return { ...item, name: u.name, lat: u.lat, lng: u.lng, streamUrl: u.streamUrl };
+          }
+          if (item.id.startsWith("pelindung-") && newPelindungStreams[item.id]) {
+            const u = newPelindungStreams[item.id];
+            return {
+              ...item,
+              streamUrl: u.streamUrl,
+              ...(u.name ? { name: u.name } : {}),
+              ...(u.lat != null && !isNaN(u.lat) ? { lat: u.lat } : {}),
+              ...(u.lng != null && !isNaN(u.lng) ? { lng: u.lng } : {}),
+            };
+          }
+          if (item.id.startsWith("kbb-") && newKbbStreams[item.id]) {
+            const u = newKbbStreams[item.id];
+            return {
+              ...item,
+              streamUrl: u.streamUrl,
+              ...(u.name ? { name: u.name } : {}),
+              ...(u.lat != null && !isNaN(u.lat) ? { lat: u.lat } : {}),
+              ...(u.lng != null && !isNaN(u.lng) ? { lng: u.lng } : {}),
+            };
+          }
+          return item;
+        });
 
-      fs.writeFileSync(filePath, JSON.stringify(list, null, 2), "utf8");
-      totalCount = list.length;
+        totalCount = list.length;
+        fs.writeFileSync(filePath, JSON.stringify(list, null, 2), "utf8");
+      } catch (writeErr: any) {
+        console.warn(`[UPDATE-CCTV] Cannot write to ${filePath} (${writeErr.code || writeErr.message})`);
+      }
     }
 
     // Also scrape & sync SPKLU Bandung from spklu.web.id
     let spkluCount = 0;
+    let bandungSpklu: any[] = [];
     try {
       const spkluRes = await fetch("https://spklu.web.id/wp-content/themes/spklu-web/data/spklu_data.json", {
         headers: { "User-Agent": "Mozilla/5.0" },
@@ -175,7 +312,7 @@ async function handleUpdate(request: NextRequest) {
         const kats = lk.kats || lk.kategori || ["Rest Area Tol", "Mall / Pusat Belanja", "Hotel / Penginapan", "Kantor PLN", "Dealer / Bengkel", "Dealer / Bengkel Wuling", "SPBU", "Area Publik"];
         const sokets = lk.sokets || ["CCS2 & CHAdeMO", "Type 2 (AC)", "GB/T (Wuling)", "GB/T (Wuling) & AC Type 2", "Multi-socket"];
 
-        const bandungSpklu = (spkluJson.data || [])
+        bandungSpklu = (spkluJson.data || [])
           .map((item: any, idx: number) => {
             const lat = typeof item[3] === "number" ? item[3] : parseFloat(item[3]);
             const lng = typeof item[4] === "number" ? item[4] : parseFloat(item[4]);
@@ -210,21 +347,51 @@ async function handleUpdate(request: NextRequest) {
         ];
         for (const f of spkluFiles) {
           if (!fs.existsSync(f)) continue;
-          fs.writeFileSync(f, JSON.stringify(bandungSpklu, null, 2), "utf8");
+          try {
+            fs.writeFileSync(f, JSON.stringify(bandungSpklu, null, 2), "utf8");
+          } catch {
+            // Read-only filesystem safe
+          }
         }
       }
     } catch (spkluErr) {
       console.warn("SPKLU sync warning:", spkluErr);
     }
 
+    // Save to Redis if connected
+    if (redis) {
+      try {
+        if (Object.keys(newKabStreams).length > 0) {
+          await redis.set("cctv:kab_streams", JSON.stringify(newKabStreams));
+        }
+        if (Object.keys(newPelindungStreams).length > 0) {
+          await redis.set("cctv:pelindung_streams", JSON.stringify(newPelindungStreams));
+        }
+        if (Object.keys(newKbbStreams).length > 0) {
+          await redis.set("cctv:kbb_streams", JSON.stringify(newKbbStreams));
+        }
+        if (bandungSpklu.length > 0) {
+          await redis.set("spklu:data", JSON.stringify(bandungSpklu));
+        }
+      } catch (redisErr) {
+        console.error("[REDIS] Error saving updated data:", redisErr);
+      }
+    }
+
+
     return NextResponse.json({
       success: true,
-      type: "fast_kab",
-      message: `Berhasil memperbarui ${scrapedCount} CCTV Kab. Bandung & ${spkluCount} SPKLU!`,
-      updatedKab: scrapedCount,
+      type: "fast_multi",
+      message: `Berhasil memperbarui ${perProviderUpdated.kab} KAB + ${perProviderUpdated.pelindung} Pelindung + ${perProviderUpdated.kbb} KBB, ${spkluCount} SPKLU.`,
+      updated: perProviderUpdated,
+      scraped: {
+        kab: Object.keys(newKabStreams).length,
+        pelindung: Object.keys(newPelindungStreams).length,
+        kbb: Object.keys(newKbbStreams).length,
+      },
       totalCCTV: totalCount,
       spkluCount,
-      streams: Object.values(newKabStreams).map((c) => ({ id: c.id, name: c.name })),
+      providerErrors: Object.keys(providerErrors).length ? providerErrors : undefined,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
